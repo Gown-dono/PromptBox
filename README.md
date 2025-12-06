@@ -2,7 +2,7 @@
 
 A modern, feature-rich WPF desktop application for managing AI prompts. Create, edit, organize, search, and export prompts for ChatGPT, GitHub Copilot, Claude, and other AI models. Works completely offline with local storage.
 
-![PromptBox Screenshot](https://raw.githubusercontent.com/Gown-Dono/PromptBox-AI-Prompt-Manager/main/screenshot.png)
+![PromptBox Screenshot](https://raw.githubusercontent.com/Gown-dono/PromptBox-AI-Prompt-Manager/main/Screenshot.png)
 
 ## ✨ Features
 
@@ -60,8 +60,8 @@ PromptBox/
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/promptbox.git
-cd promptbox
+git clone https://github.com/Gown-dono/PromptBox-AI-Prompt-Manager.git
+cd PromptBox-AI-Prompt-Manager
 ```
 
 2. Restore NuGet packages:
@@ -125,13 +125,6 @@ PromptBox/Data/promptbox.db
 
 This LiteDB database file contains all your prompts, categories, and tags. You can back it up by copying this file.
 
-## 🎨 Screenshots
-
-### Dark Mode
-![PromptBox Dark Mode](https://raw.githubusercontent.com/yourusername/promptbox/main/screenshot.png)
-
-*Clean, modern interface with Material Design components, real-time Markdown preview, and intuitive organization*
-
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
@@ -155,8 +148,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📧 Contact
 
-Project Link: [https://github.com/yourusername/promptbox](https://github.com/yourusername/promptbox)
-
----
-
-Made with ❤️ for the AI community
+Project Link: [https://github.com/Gown-dono/PromptBox](https://github.com/Gown-dono/PromptBox)
