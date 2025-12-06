@@ -112,10 +112,6 @@ The compiled application will be in `PromptBox/bin/Release/net8.0-windows/win-x6
 - Select a previously exported JSON file
 - All prompts will be imported as new entries
 
-### Theme Toggle
-- Click the theme icon in the top-right corner to switch between Light and Dark modes
-- Your preference is saved automatically
-
 ## Data Storage
 
 All data is stored locally in:
