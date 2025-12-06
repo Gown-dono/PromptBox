@@ -1,10 +1,10 @@
-# 🧠 PromptBox — Offline AI Prompt Manager
+# PromptBox — Offline AI Prompt Manager
 
 A modern, feature-rich WPF desktop application for managing AI prompts. Create, edit, organize, search, and export prompts for ChatGPT, GitHub Copilot, Claude, and other AI models. Works completely offline with local storage.
 
 ![PromptBox Screenshot](Screenshot.png)
 
-## ✨ Features
+## Features
 
 ### Core Functionality
 - **Prompt Management**: Create, edit, delete, and view prompt entries
@@ -26,7 +26,7 @@ A modern, feature-rich WPF desktop application for managing AI prompts. Create, 
 - **Offline First**: All data stored locally using LiteDB
 - **Fast Performance**: Optimized search and filtering
 
-## 🏗️ Architecture
+## Architecture
 
 Built using **MVVM (Model-View-ViewModel)** pattern with clean separation of concerns:
 
@@ -40,7 +40,7 @@ PromptBox/
 └── Data/                # LiteDB database storage (created at runtime)
 ```
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 - **.NET 8.0** - Modern .NET framework
 - **WPF** - Windows Presentation Foundation
@@ -50,7 +50,7 @@ PromptBox/
 - **CommunityToolkit.Mvvm** - MVVM helpers and commands
 - **Dependency Injection** - Microsoft.Extensions.DependencyInjection
 
-## 📦 Installation
+## Installation
 
 ### Prerequisites
 - Windows 10/11
@@ -87,7 +87,7 @@ dotnet publish -c Release -r win-x64 --self-contained
 
 The compiled application will be in `PromptBox/bin/Release/net8.0-windows/win-x64/publish/`
 
-## 🚀 Usage
+## Usage
 
 ### Creating a Prompt
 1. Click **"New Prompt"** in the left sidebar
@@ -116,7 +116,7 @@ The compiled application will be in `PromptBox/bin/Release/net8.0-windows/win-x6
 - Click the theme icon in the top-right corner to switch between Light and Dark modes
 - Your preference is saved automatically
 
-## 📁 Data Storage
+## Data Storage
 
 All data is stored locally in:
 ```
@@ -125,7 +125,7 @@ PromptBox/Data/promptbox.db
 
 This LiteDB database file contains all your prompts, categories, and tags. You can back it up by copying this file.
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
@@ -135,17 +135,17 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📝 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - [MaterialDesignInXAML](https://github.com/MaterialDesignInXAML/MaterialDesignInXamlToolkit) - Beautiful Material Design components
 - [LiteDB](https://github.com/mbdavid/LiteDB) - Lightweight NoSQL database
 - [Markdig](https://github.com/xoofx/markdig) - Markdown processor
 - [CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet) - MVVM helpers
 
-## 📧 Contact
+## Contact
 
 Project Link: [https://github.com/Gown-dono/PromptBox](https://github.com/Gown-dono/PromptBox)
