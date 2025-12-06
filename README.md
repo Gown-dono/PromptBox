@@ -2,7 +2,7 @@
 
 A modern, feature-rich WPF desktop application for managing AI prompts. Create, edit, organize, search, and export prompts for ChatGPT, GitHub Copilot, Claude, and other AI models. Works completely offline with local storage.
 
-![PromptBox Screenshot](https://raw.githubusercontent.com/Gown-dono/PromptBox-AI-Prompt-Manager/main/Screenshot.png)
+![PromptBox Screenshot](https://raw.githubusercontent.com/Gown-dono/PromptBox/main/Screenshot.png)
 
 ## ✨ Features
 
