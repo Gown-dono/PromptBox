@@ -9,11 +9,6 @@
     <img src="https://img.shields.io/github/v/release/Gown-dono/PromptBox?style=for-the-badge" />
   </a>
 
-  <!-- Downloads -->
-  <a href="https://github.com/Gown-dono/PromptBox/releases">
-    <img src="https://img.shields.io/github/downloads/Gown-dono/PromptBox/total?style=for-the-badge" />
-  </a>
-
   <!-- License -->
   <a href="https://github.com/Gown-dono/PromptBox/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/Gown-dono/PromptBox?style=for-the-badge" />
