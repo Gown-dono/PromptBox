@@ -86,6 +86,8 @@
                         <ListBox ItemsSource="{Binding Categories}" 
                                  SelectedItem="{Binding SelectedCategory}"
                                  Margin="0,0,0,20"
+                                 MaxHeight="150"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
                                  Background="Transparent">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
@@ -111,6 +113,8 @@
                         </Grid>
                         <ListBox ItemsSource="{Binding Tags}" 
                                  SelectedItem="{Binding SelectedTag}"
+                                 MaxHeight="200"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
                                  Background="Transparent">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
@@ -285,6 +289,15 @@
 
                 <!-- Action Buttons -->
                 <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="16" HorizontalAlignment="Right">
+                    <Button Command="{Binding ViewHistoryCommand}"
+                            Style="{StaticResource MaterialDesignRaisedButton}"
+                            ToolTip="View version history"
+                            Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="History" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="History"/>
+                        </StackPanel>
+                    </Button>
                     <Button Content="Copy to Clipboard" 
                             Command="{Binding CopyToClipboardCommand}"
                             Style="{StaticResource MaterialDesignRaisedButton}"
