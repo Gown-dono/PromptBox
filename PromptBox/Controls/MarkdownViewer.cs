@@ -63,9 +63,42 @@ public class MarkdownViewer : Control
             if (!string.IsNullOrWhiteSpace(Markdown))
             {
                 var lines = Markdown.Split('\n');
+                bool inCodeBlock = false;
+                string codeBlockLanguage = string.Empty;
+                var codeBlockLines = new System.Collections.Generic.List<string>();
                 
-                foreach (var line in lines)
+                for (int i = 0; i < lines.Length; i++)
                 {
+                    var line = lines[i];
+                    
+                    // Check for code block start/end
+                    if (line.TrimStart().StartsWith("```"))
+                    {
+                        if (!inCodeBlock)
+                        {
+                            // Starting a code block
+                            inCodeBlock = true;
+                            codeBlockLanguage = line.TrimStart().Substring(3).Trim();
+                            codeBlockLines.Clear();
+                        }
+                        else
+                        {
+                            // Ending a code block - render it
+                            inCodeBlock = false;
+                            AddCodeBlock(document, codeBlockLines, codeBlockLanguage);
+                            codeBlockLines.Clear();
+                            codeBlockLanguage = string.Empty;
+                        }
+                        continue;
+                    }
+                    
+                    // If inside code block, collect lines
+                    if (inCodeBlock)
+                    {
+                        codeBlockLines.Add(line);
+                        continue;
+                    }
+                    
                     var paragraph = new Paragraph
                     {
                         Margin = new Thickness(0, 0, 0, 4) // Reduced default margin
@@ -99,6 +132,11 @@ public class MarkdownViewer : Control
                             FontWeight = FontWeights.Bold
                         });
                     }
+                    // Inline code (single backticks)
+                    else if (line.Contains("`") && !line.Contains("```"))
+                    {
+                        ProcessInlineCode(paragraph, line);
+                    }
                     // Bold
                     else if (line.Contains("**"))
                     {
@@ -119,15 +157,6 @@ public class MarkdownViewer : Control
                         paragraph.Margin = new Thickness(indent * 10 + 20, 0, 0, 2);
                         paragraph.Inlines.Add(new Run(trimmed));
                     }
-                    // Code blocks
-                    else if (line.StartsWith("```"))
-                    {
-                        paragraph.Inlines.Add(new Run(line)
-                        {
-                            FontFamily = new FontFamily("Consolas"),
-                            Background = new SolidColorBrush(Color.FromRgb(240, 240, 240))
-                        });
-                    }
                     // Empty lines - smaller gap
                     else if (string.IsNullOrWhiteSpace(line))
                     {
@@ -141,6 +170,12 @@ public class MarkdownViewer : Control
                     }
                     
                     document.Blocks.Add(paragraph);
+                }
+                
+                // Handle unclosed code block at end of document
+                if (inCodeBlock && codeBlockLines.Count > 0)
+                {
+                    AddCodeBlock(document, codeBlockLines, codeBlockLanguage);
                 }
             }
             else
@@ -156,6 +191,87 @@ public class MarkdownViewer : Control
             var document = new FlowDocument();
             document.Blocks.Add(new Paragraph(new Run(Markdown ?? string.Empty)));
             _richTextBox.Document = document;
+        }
+    }
+    
+    private void AddCodeBlock(FlowDocument document, System.Collections.Generic.List<string> codeLines, string language)
+    {
+        var codeBackground = new SolidColorBrush(Color.FromRgb(40, 44, 52)); // Dark background
+        var codeForeground = new SolidColorBrush(Color.FromRgb(171, 178, 191)); // Light text
+        var codeFont = new FontFamily("Consolas, Courier New, monospace");
+        
+        // Create a Section to group the code block
+        var section = new Section
+        {
+            Background = codeBackground,
+            Padding = new Thickness(12),
+            Margin = new Thickness(0, 8, 0, 8)
+        };
+        
+        // Add language label if specified
+        if (!string.IsNullOrWhiteSpace(language))
+        {
+            var langParagraph = new Paragraph(new Run(language)
+            {
+                Foreground = new SolidColorBrush(Color.FromRgb(130, 137, 150)),
+                FontSize = 11,
+                FontFamily = codeFont
+            })
+            {
+                Margin = new Thickness(0, 0, 0, 8),
+                Background = new SolidColorBrush(Color.FromRgb(33, 37, 43)),
+                Padding = new Thickness(6, 2, 6, 2)
+            };
+            section.Blocks.Add(langParagraph);
+        }
+        
+        // Add each line of code
+        foreach (var codeLine in codeLines)
+        {
+            var codeParagraph = new Paragraph(new Run(codeLine)
+            {
+                FontFamily = codeFont,
+                Foreground = codeForeground,
+                FontSize = 13
+            })
+            {
+                Margin = new Thickness(0, 0, 0, 0),
+                LineHeight = 20
+            };
+            section.Blocks.Add(codeParagraph);
+        }
+        
+        document.Blocks.Add(section);
+    }
+    
+    private void ProcessInlineCode(Paragraph paragraph, string line)
+    {
+        var codeBackground = new SolidColorBrush(Color.FromRgb(60, 64, 72));
+        var codeForeground = new SolidColorBrush(Color.FromRgb(230, 192, 123));
+        var codeFont = new FontFamily("Consolas, Courier New, monospace");
+        
+        var parts = line.Split('`');
+        for (int i = 0; i < parts.Length; i++)
+        {
+            if (i % 2 == 0)
+            {
+                // Normal text
+                if (!string.IsNullOrEmpty(parts[i]))
+                {
+                    paragraph.Inlines.Add(new Run(parts[i]));
+                }
+            }
+            else
+            {
+                // Inline code
+                paragraph.Inlines.Add(new Run(parts[i])
+                {
+                    FontFamily = codeFont,
+                    Background = codeBackground,
+                    Foreground = codeForeground,
+                    FontSize = 12
+                });
+            }
         }
     }
 
