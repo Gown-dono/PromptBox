@@ -4,6 +4,7 @@ using MaterialDesignThemes.Wpf;
 using Microsoft.Win32;
 using PromptBox.Models;
 using PromptBox.Services;
+using PromptBox.Views;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -22,6 +23,7 @@ public partial class MainViewModel : ObservableObject
     private readonly IThemeService _themeService;
     private readonly IExportService _exportService;
     private readonly ISearchService _searchService;
+    private readonly IPromptLibraryService _promptLibraryService;
     
     public SnackbarMessageQueue? SnackbarMessageQueue { get; set; }
 
@@ -68,12 +70,14 @@ public partial class MainViewModel : ObservableObject
         IDatabaseService databaseService,
         IThemeService themeService,
         IExportService exportService,
-        ISearchService searchService)
+        ISearchService searchService,
+        IPromptLibraryService promptLibraryService)
     {
         _databaseService = databaseService;
         _themeService = themeService;
         _exportService = exportService;
         _searchService = searchService;
+        _promptLibraryService = promptLibraryService;
         
         IsDarkMode = _themeService.IsDarkMode;
         
@@ -349,6 +353,27 @@ public partial class MainViewModel : ObservableObject
             
             await LoadData();
             SnackbarMessageQueue?.Enqueue($"✓ Imported {importedPrompts.Count} prompts!");
+        }
+    }
+
+    [RelayCommand]
+    private void BrowseLibrary()
+    {
+        var dialog = new LibraryBrowserDialog(_promptLibraryService)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        if (dialog.ShowDialog() == true && dialog.ImportedPrompt != null)
+        {
+            // Load the imported template into the editor
+            SelectedPrompt = null;
+            EditTitle = dialog.ImportedPrompt.Title;
+            EditCategory = dialog.ImportedPrompt.Category;
+            EditTags = string.Join(", ", dialog.ImportedPrompt.Tags);
+            EditContent = dialog.ImportedPrompt.Content;
+            
+            SnackbarMessageQueue?.Enqueue("✓ Template loaded! Edit and save to add to your prompts.");
         }
     }
 

@@ -38,6 +38,7 @@ public partial class App : Application
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IExportService, ExportService>();
         services.AddSingleton<ISearchService, SearchService>();
+        services.AddSingleton<IPromptLibraryService, PromptLibraryService>();
 
         // ViewModels
         services.AddTransient<MainViewModel>();

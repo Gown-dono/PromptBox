@@ -190,6 +190,34 @@
 - Efficient data binding
 - Minimal memory footprint
 
+### 11. Prompt Library
+
+#### Built-in Templates
+- 30+ pre-built prompt templates
+- Organized by category
+- Ready to use or customize
+
+#### Categories Available
+- **Coding**: Code review, debugging, refactoring, unit tests
+- **Writing**: Blog posts, emails, documentation
+- **Analysis**: Data analysis, SWOT, competitor analysis
+- **Creative**: Story generation, brainstorming, social media
+- **Productivity**: Meeting summaries, task breakdown, decisions
+- **Learning**: Concept explanations, study guides, ELI5
+- **AI Assistant**: System prompts, prompt improvement, chain of thought
+- **Business**: Business plans, pitch decks, user personas
+- **Communication**: Feedback, difficult conversations, presentations
+- **Research**: Literature reviews, research questions
+- **Career**: Resume improvement, interview prep, cover letters
+
+#### Library Browser
+- Click "Browse Library" in the left sidebar
+- Filter by category
+- Search across all templates
+- Preview template content
+- Import to editor with one click
+- Customize and save as your own prompt
+
 ## Keyboard Shortcuts
 
 Currently, the application uses standard Windows shortcuts:
@@ -202,9 +230,9 @@ Currently, the application uses standard Windows shortcuts:
 
 Potential features for future versions:
 - Keyboard shortcuts for common actions
-- Prompt templates
 - Version history for prompts
 - Favorites/starred prompts
+- Community prompt library (online)
 - Prompt sharing (export as link)
 - Cloud sync option
 - AI-powered prompt suggestions

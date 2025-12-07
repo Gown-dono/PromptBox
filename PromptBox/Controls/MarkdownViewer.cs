@@ -62,16 +62,19 @@ public class MarkdownViewer : Control
             
             if (!string.IsNullOrWhiteSpace(Markdown))
             {
-                var html = Markdig.Markdown.ToHtml(Markdown);
                 var lines = Markdown.Split('\n');
                 
                 foreach (var line in lines)
                 {
-                    var paragraph = new Paragraph();
+                    var paragraph = new Paragraph
+                    {
+                        Margin = new Thickness(0, 0, 0, 4) // Reduced default margin
+                    };
                     
                     // Headers
                     if (line.StartsWith("# "))
                     {
+                        paragraph.Margin = new Thickness(0, 8, 0, 4);
                         paragraph.Inlines.Add(new Run(line.Substring(2))
                         {
                             FontSize = 24,
@@ -80,6 +83,7 @@ public class MarkdownViewer : Control
                     }
                     else if (line.StartsWith("## "))
                     {
+                        paragraph.Margin = new Thickness(0, 6, 0, 4);
                         paragraph.Inlines.Add(new Run(line.Substring(3))
                         {
                             FontSize = 20,
@@ -88,6 +92,7 @@ public class MarkdownViewer : Control
                     }
                     else if (line.StartsWith("### "))
                     {
+                        paragraph.Margin = new Thickness(0, 4, 0, 4);
                         paragraph.Inlines.Add(new Run(line.Substring(4))
                         {
                             FontSize = 16,
@@ -103,8 +108,16 @@ public class MarkdownViewer : Control
                     else if (line.TrimStart().StartsWith("- ") || line.TrimStart().StartsWith("* "))
                     {
                         var indent = line.Length - line.TrimStart().Length;
-                        paragraph.Margin = new Thickness(indent * 10 + 20, 0, 0, 0);
+                        paragraph.Margin = new Thickness(indent * 10 + 20, 0, 0, 2);
                         paragraph.Inlines.Add(new Run("• " + line.TrimStart().Substring(2)));
+                    }
+                    // Numbered lists
+                    else if (System.Text.RegularExpressions.Regex.IsMatch(line.TrimStart(), @"^\d+\.\s"))
+                    {
+                        var trimmed = line.TrimStart();
+                        var indent = line.Length - trimmed.Length;
+                        paragraph.Margin = new Thickness(indent * 10 + 20, 0, 0, 2);
+                        paragraph.Inlines.Add(new Run(trimmed));
                     }
                     // Code blocks
                     else if (line.StartsWith("```"))
@@ -114,6 +127,12 @@ public class MarkdownViewer : Control
                             FontFamily = new FontFamily("Consolas"),
                             Background = new SolidColorBrush(Color.FromRgb(240, 240, 240))
                         });
+                    }
+                    // Empty lines - smaller gap
+                    else if (string.IsNullOrWhiteSpace(line))
+                    {
+                        paragraph.Margin = new Thickness(0, 0, 0, 2);
+                        paragraph.Inlines.Add(new Run(" "));
                     }
                     // Normal text
                     else
