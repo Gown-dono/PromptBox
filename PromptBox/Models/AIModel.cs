@@ -53,9 +53,14 @@ public static class AIProviders
         new AIModel { Id = "mistral-large-latest", Name = "Mistral Large", Provider = Mistral, ApiEndpoint = "https://api.mistral.ai/v1/chat/completions", MaxTokens = 128000, Description = "Most capable Mistral" },
         new AIModel { Id = "mistral-small-latest", Name = "Mistral Small", Provider = Mistral, ApiEndpoint = "https://api.mistral.ai/v1/chat/completions", MaxTokens = 32000, Description = "Cost-effective" },
         
-        // Groq Models (fast inference)
+        // Groq Models (fast inference) - December 2025
         new AIModel { Id = "llama-3.3-70b-versatile", Name = "Llama 3.3 70B", Provider = Groq, ApiEndpoint = "https://api.groq.com/openai/v1/chat/completions", MaxTokens = 128000, Description = "Fast Llama inference" },
-        new AIModel { Id = "mixtral-8x7b-32768", Name = "Mixtral 8x7B", Provider = Groq, ApiEndpoint = "https://api.groq.com/openai/v1/chat/completions", MaxTokens = 32768, Description = "Fast Mixtral inference" },
+        new AIModel { Id = "llama-3.1-8b-instant", Name = "Llama 3.1 8B", Provider = Groq, ApiEndpoint = "https://api.groq.com/openai/v1/chat/completions", MaxTokens = 131072, Description = "Fast, lightweight inference" },
+        new AIModel { Id = "meta-llama/llama-4-scout-17b-16e-instruct", Name = "Llama 4 Scout", Provider = Groq, ApiEndpoint = "https://api.groq.com/openai/v1/chat/completions", MaxTokens = 128000, Description = "Multimodal, 750 tps" },
+        new AIModel { Id = "meta-llama/llama-4-maverick-17b-128e-instruct", Name = "Llama 4 Maverick", Provider = Groq, ApiEndpoint = "https://api.groq.com/openai/v1/chat/completions", MaxTokens = 128000, Description = "Multimodal, 600 tps" },
+        new AIModel { Id = "qwen/qwen3-32b", Name = "Qwen3 32B", Provider = Groq, ApiEndpoint = "https://api.groq.com/openai/v1/chat/completions", MaxTokens = 32768, Description = "Reasoning model" },
+        new AIModel { Id = "openai/gpt-oss-120b", Name = "GPT-OSS 120B", Provider = Groq, ApiEndpoint = "https://api.groq.com/openai/v1/chat/completions", MaxTokens = 128000, Description = "Large open-source model" },
+        new AIModel { Id = "moonshotai/kimi-k2-instruct", Name = "Kimi K2", Provider = Groq, ApiEndpoint = "https://api.groq.com/openai/v1/chat/completions", MaxTokens = 131072, Description = "Moonshot AI model" },
     };
 }
 
