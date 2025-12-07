@@ -40,6 +40,9 @@ public partial class App : Application
         services.AddSingleton<ISearchService, SearchService>();
         services.AddSingleton<IPromptLibraryService, PromptLibraryService>();
         services.AddSingleton<IVersioningService, VersioningService>();
+        services.AddSingleton<ISecureStorageService, SecureStorageService>();
+        services.AddSingleton<IAIService, AIService>();
+        services.AddSingleton<IPromptSuggestionService, PromptSuggestionService>();
 
         // ViewModels
         services.AddTransient<MainViewModel>();

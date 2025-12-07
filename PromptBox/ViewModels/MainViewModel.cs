@@ -25,6 +25,9 @@ public partial class MainViewModel : ObservableObject
     private readonly ISearchService _searchService;
     private readonly IPromptLibraryService _promptLibraryService;
     private readonly IVersioningService _versioningService;
+    private readonly ISecureStorageService _secureStorageService;
+    private readonly IAIService _aiService;
+    private readonly IPromptSuggestionService _promptSuggestionService;
     
     public SnackbarMessageQueue? SnackbarMessageQueue { get; set; }
 
@@ -73,7 +76,10 @@ public partial class MainViewModel : ObservableObject
         IExportService exportService,
         ISearchService searchService,
         IPromptLibraryService promptLibraryService,
-        IVersioningService versioningService)
+        IVersioningService versioningService,
+        ISecureStorageService secureStorageService,
+        IAIService aiService,
+        IPromptSuggestionService promptSuggestionService)
     {
         _databaseService = databaseService;
         _themeService = themeService;
@@ -81,6 +87,9 @@ public partial class MainViewModel : ObservableObject
         _searchService = searchService;
         _promptLibraryService = promptLibraryService;
         _versioningService = versioningService;
+        _secureStorageService = secureStorageService;
+        _aiService = aiService;
+        _promptSuggestionService = promptSuggestionService;
         
         IsDarkMode = _themeService.IsDarkMode;
         
@@ -425,6 +434,22 @@ public partial class MainViewModel : ObservableObject
             EditContent = dialog.RestoredVersion.Content;
             
             SnackbarMessageQueue?.Enqueue("✓ Version restored! Click Save to apply changes.");
+        }
+    }
+
+    [RelayCommand]
+    private void OpenPromptBuilder()
+    {
+        var dialog = new PromptBuilderDialog(_aiService, _secureStorageService, _promptSuggestionService)
+        {
+            Owner = Application.Current.MainWindow,
+            InitialPrompt = EditContent
+        };
+
+        if (dialog.ShowDialog() == true && !string.IsNullOrEmpty(dialog.ResultPrompt))
+        {
+            EditContent = dialog.ResultPrompt;
+            SnackbarMessageQueue?.Enqueue("✓ Prompt loaded from AI Builder");
         }
     }
 

@@ -250,6 +250,88 @@ Currently, the application uses standard Windows shortcuts:
 - `Ctrl+A`: Select all (in text fields)
 - `Tab`: Navigate between fields
 
+### 13. AI Prompt Builder
+
+#### Multi-Model AI Support
+- **OpenAI**: GPT-4o, GPT-4o Mini, GPT-4 Turbo, GPT-3.5 Turbo
+- **Anthropic**: Claude Sonnet 4, Claude 3.5 Sonnet, Claude 3.5 Haiku
+- **Google**: Gemini 2.0 Flash, Gemini 1.5 Pro, Gemini 1.5 Flash
+- **Mistral AI**: Mistral Large, Mistral Small
+- **Groq**: Llama 3.3 70B, Mixtral 8x7B (ultra-fast inference)
+
+#### Secure API Key Management
+- Windows DPAPI encryption for secure storage
+- Per-provider API key configuration
+- Easy add/delete API keys
+- Keys never stored in plain text
+- Visual status indicators for configured providers
+
+#### AI Enhancement Tools
+- **Improve Clarity**: Make prompts more specific and unambiguous
+- **Add Detail**: Enhance prompts with context and constraints
+- **Make Concise**: Remove redundancy while keeping essentials
+- **Professional Tone**: Rewrite in formal, professional language
+- **Add Structure**: Organize with sections and numbered steps
+- **Generate Variations**: Create multiple alternative versions
+
+#### Prompt Quality Analyzer
+- AI-powered quality scoring (0-100)
+- Clarity and specificity ratings
+- Strength identification
+- Improvement suggestions
+- Actionable feedback
+
+#### Variable Templates
+- Insert reusable variables: `{{topic}}`, `{{context}}`, `{{format}}`
+- Quick-insert buttons for common variables
+- Support for: topic, context, format, tone, audience, length
+
+#### Real-time AI Testing
+- Test prompts directly with selected AI model
+- Streaming responses for immediate feedback
+- Adjustable temperature control
+- Token usage tracking
+- Stop generation capability
+
+#### Innovative Features
+- **Response-to-Prompt**: Use AI response as new prompt input
+- **Prompt Variations**: Generate 3 alternative versions instantly
+- **Model Switching**: Compare responses across different AI models
+- **Copy Response**: One-click copy AI responses
+- **AI Smart Suggestions**: AI-generated improved prompt versions
+- **Quick Start Templates**: 10 pre-built templates for common tasks
+
+### 14. AI Settings
+
+#### Provider Configuration
+- Visual provider cards with status
+- Easy API key entry with password masking
+- One-click save and delete
+- Provider descriptions and model info
+
+### 15. Quick Start Templates
+
+#### Built-in Templates
+- **Code Review**: Comprehensive code analysis template
+- **Explain Concept**: Learning-focused explanation template
+- **Debug Issue**: Structured debugging assistance
+- **Write Documentation**: Technical docs template
+- **Brainstorm Ideas**: Creative ideation template
+- **Write Email**: Professional communication template
+- **Create Test Cases**: QA testing template
+- **Refactor Code**: Code improvement template
+- **API Design**: REST API design template
+- **Data Analysis**: Analytics and insights template
+
+### 16. AI Smart Suggestions
+
+#### AI-Powered Prompt Improvements
+- Click "Get Suggestions" to generate AI-powered improvements
+- Generates 3-5 complete improved prompt versions
+- Each suggestion improves clarity, specificity, or structure
+- One-click to apply any suggestion
+- Uses selected AI model for intelligent analysis
+
 ## Future Enhancement Ideas
 
 Potential features for future versions:

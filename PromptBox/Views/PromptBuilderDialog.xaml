@@ -1,0 +1,506 @@
+<Window x:Class="PromptBox.Views.PromptBuilderDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        xmlns:local="clr-namespace:PromptBox.Controls"
+        Title="AI Prompt Builder" 
+        Height="850" Width="1200"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource MaterialDesignPaper}"
+        FontFamily="{materialDesign:MaterialDesignFont}">
+    
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Controls/MarkdownViewer.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+    
+    <materialDesign:DialogHost Identifier="PromptBuilderDialog">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Header with Model Selection -->
+        <Border Grid.Row="0" Background="{DynamicResource MaterialDesignCardBackground}" Padding="8,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <!-- Model Selection -->
+                    <TextBlock Text="Model:" 
+                               VerticalAlignment="Center" 
+                               Margin="0,0,8,0"
+                               Foreground="{DynamicResource MaterialDesignBody}"/>
+                    <ComboBox x:Name="ModelComboBox" 
+                              Width="200" 
+                              SelectionChanged="ModelComboBox_SelectionChanged"
+                              DisplayMemberPath="Name"
+                              Foreground="{DynamicResource MaterialDesignBody}"
+                              Style="{StaticResource MaterialDesignComboBox}"/>
+                    
+                    <!-- Temperature Slider -->
+                    <TextBlock Text="Temperature:" 
+                               VerticalAlignment="Center" 
+                               Margin="20,0,8,0"
+                               Foreground="{DynamicResource MaterialDesignBody}"/>
+                    <Slider x:Name="TemperatureSlider" 
+                            Width="100" 
+                            Minimum="0" Maximum="1" 
+                            Value="0.7"
+                            TickFrequency="0.1"
+                            IsSnapToTickEnabled="True"
+                            VerticalAlignment="Center"/>
+                    <TextBlock x:Name="TemperatureValue" 
+                               Text="0.7" 
+                               Width="30"
+                               VerticalAlignment="Center"
+                               Margin="8,0,0,0"
+                               Foreground="{DynamicResource MaterialDesignBody}"/>
+                    
+                    <!-- Max Tokens Slider -->
+                    <TextBlock Text="Max Tokens:" 
+                               VerticalAlignment="Center" 
+                               Margin="20,0,8,0"
+                               Foreground="{DynamicResource MaterialDesignBody}"/>
+                    <Slider x:Name="MaxTokensSlider" 
+                            Width="100" 
+                            Minimum="512" Maximum="8192" 
+                            Value="4096"
+                            TickFrequency="512"
+                            IsSnapToTickEnabled="True"
+                            VerticalAlignment="Center"
+                            ToolTip="Maximum number of tokens in the AI response. Increase for longer responses."/>
+                    <TextBlock x:Name="MaxTokensValue" 
+                               Text="4096" 
+                               Width="40"
+                               VerticalAlignment="Center"
+                               Margin="8,0,0,0"
+                               Foreground="{DynamicResource MaterialDesignBody}"/>
+                    
+                    <!-- Settings Button -->
+                    <Button x:Name="SettingsButton"
+                            Click="SettingsButton_Click"
+                            Style="{StaticResource MaterialDesignIconButton}"
+                            ToolTip="AI Settings"
+                            Margin="16,0,0,0">
+                        <materialDesign:PackIcon Kind="Cog" Width="24" Height="24"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+        
+        <!-- Main Content -->
+        <Grid Grid.Row="1" Margin="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            
+            <!-- Left Panel - Prompt Input & Tools -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                
+                <!-- Enhancement Tools & Starters -->
+                <Border Grid.Row="0" Background="{DynamicResource MaterialDesignCardBackground}" 
+                        CornerRadius="8" Padding="12" Margin="0,0,0,12">
+                    <StackPanel>
+                        <!-- Prompt Starters -->
+                        <Expander Margin="0,0,0,8" Foreground="{DynamicResource MaterialDesignBody}">
+                            <Expander.Header>
+                                <TextBlock Text="🚀 Quick Start Templates" Foreground="{DynamicResource MaterialDesignBody}"/>
+                            </Expander.Header>
+                            <WrapPanel Margin="24,8,0,0">
+                                <Button Content="Code Review" Click="StarterTemplate_Click" Tag="Code Review"
+                                        Style="{StaticResource MaterialDesignRaisedButton}" Margin="0,0,4,4" Padding="8,4"/>
+                                <Button Content="Explain Concept" Click="StarterTemplate_Click" Tag="Explain Concept"
+                                        Style="{StaticResource MaterialDesignRaisedButton}" Margin="0,0,4,4" Padding="8,4"/>
+                                <Button Content="Debug Issue" Click="StarterTemplate_Click" Tag="Debug Issue"
+                                        Style="{StaticResource MaterialDesignRaisedButton}" Margin="0,0,4,4" Padding="8,4"/>
+                                <Button Content="Write Docs" Click="StarterTemplate_Click" Tag="Write Documentation"
+                                        Style="{StaticResource MaterialDesignRaisedButton}" Margin="0,0,4,4" Padding="8,4"/>
+                                <Button Content="Brainstorm" Click="StarterTemplate_Click" Tag="Brainstorm Ideas"
+                                        Style="{StaticResource MaterialDesignRaisedButton}" Margin="0,0,4,4" Padding="8,4"/>
+                                <Button Content="Write Email" Click="StarterTemplate_Click" Tag="Write Email"
+                                        Style="{StaticResource MaterialDesignRaisedButton}" Margin="0,0,4,4" Padding="8,4"/>
+                                <Button Content="Test Cases" Click="StarterTemplate_Click" Tag="Create Test Cases"
+                                        Style="{StaticResource MaterialDesignRaisedButton}" Margin="0,0,4,4" Padding="8,4"/>
+                                <Button Content="Refactor" Click="StarterTemplate_Click" Tag="Refactor Code"
+                                        Style="{StaticResource MaterialDesignRaisedButton}" Margin="0,0,4,4" Padding="8,4"/>
+                                <Button Content="API Design" Click="StarterTemplate_Click" Tag="API Design"
+                                        Style="{StaticResource MaterialDesignRaisedButton}" Margin="0,0,4,4" Padding="8,4"/>
+                                <Button Content="Data Analysis" Click="StarterTemplate_Click" Tag="Data Analysis"
+                                        Style="{StaticResource MaterialDesignRaisedButton}" Margin="0,0,4,4" Padding="8,4"/>
+                            </WrapPanel>
+                        </Expander>
+                        
+                        <Expander Foreground="{DynamicResource MaterialDesignBody}">
+                            <Expander.Header>
+                                <TextBlock Text="✨ AI Enhancement Tools" Foreground="{DynamicResource MaterialDesignBody}"/>
+                            </Expander.Header>
+                            <WrapPanel Margin="24,8,0,0">
+                                <Button Content="Improve Clarity" 
+                                        Click="EnhanceClarity_Click"
+                                        Style="{StaticResource MaterialDesignRaisedButton}"
+                                        Margin="0,0,8,8"/>
+                                <Button Content="Add Detail" 
+                                        Click="EnhanceDetail_Click"
+                                        Style="{StaticResource MaterialDesignRaisedButton}"
+                                        Margin="0,0,8,8"/>
+                                <Button Content="Make Concise" 
+                                        Click="EnhanceConcise_Click"
+                                        Style="{StaticResource MaterialDesignRaisedButton}"
+                                        Margin="0,0,8,8"/>
+                                <Button Content="Professional Tone" 
+                                        Click="EnhanceProfessional_Click"
+                                        Style="{StaticResource MaterialDesignRaisedButton}"
+                                        Margin="0,0,8,8"/>
+                                <Button Content="Add Structure" 
+                                        Click="EnhanceStructured_Click"
+                                        Style="{StaticResource MaterialDesignRaisedButton}"
+                                        Margin="0,0,8,8"/>
+                                <Button Content="Generate Variations" 
+                                        Click="GenerateVariations_Click"
+                                        Style="{StaticResource MaterialDesignRaisedButton}"
+                                        Margin="0,0,8,8"/>
+                            </WrapPanel>
+                        </Expander>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Prompt Input -->
+                <Border Grid.Row="1" 
+                        BorderBrush="{DynamicResource MaterialDesignDivider}" 
+                        BorderThickness="1" 
+                        CornerRadius="8"
+                        Background="{DynamicResource MaterialDesignCardBackground}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <Border Grid.Row="0" Background="{DynamicResource PrimaryHueLightBrush}" Padding="12">
+                            <TextBlock Text="Your Prompt" 
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource PrimaryHueDarkForegroundBrush}"/>
+                        </Border>
+                        
+                        <TextBox x:Name="PromptInput"
+                                 Grid.Row="1"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto"
+                                 Padding="12"
+                                 FontFamily="Consolas"
+                                 FontSize="13"
+                                 Foreground="{DynamicResource MaterialDesignBody}"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 TextChanged="PromptInput_TextChanged"
+                                 materialDesign:HintAssist.Hint="Enter your prompt here..."/>
+                    </Grid>
+                </Border>
+                
+                <!-- Variable Templates -->
+                <Border Grid.Row="2" Background="{DynamicResource MaterialDesignCardBackground}" 
+                        CornerRadius="8" Padding="12" Margin="0,12,0,0">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="📝 Variable Templates" 
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource MaterialDesignBody}"/>
+                            <TextBlock Text=" (Use {}{variable}{} syntax)" 
+                                       FontSize="11"
+                                       Foreground="{DynamicResource MaterialDesignBodyLight}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <WrapPanel>
+                            <Button Content="{}{topic}{}" Click="InsertVariable_Click" Tag="topic"
+                                    Style="{StaticResource MaterialDesignRaisedButton}" Padding="8,4" Margin="0,0,4,4"/>
+                            <Button Content="{}{context}{}" Click="InsertVariable_Click" Tag="context"
+                                    Style="{StaticResource MaterialDesignRaisedButton}" Padding="8,4" Margin="0,0,4,4"/>
+                            <Button Content="{}{format}{}" Click="InsertVariable_Click" Tag="format"
+                                    Style="{StaticResource MaterialDesignRaisedButton}" Padding="8,4" Margin="0,0,4,4"/>
+                            <Button Content="{}{tone}{}" Click="InsertVariable_Click" Tag="tone"
+                                    Style="{StaticResource MaterialDesignRaisedButton}" Padding="8,4" Margin="0,0,4,4"/>
+                            <Button Content="{}{audience}{}" Click="InsertVariable_Click" Tag="audience"
+                                    Style="{StaticResource MaterialDesignRaisedButton}" Padding="8,4" Margin="0,0,4,4"/>
+                            <Button Content="{}{length}{}" Click="InsertVariable_Click" Tag="length"
+                                    Style="{StaticResource MaterialDesignRaisedButton}" Padding="8,4" Margin="0,0,4,4"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+                
+                <!-- AI Smart Suggestions -->
+                <Border Grid.Row="3" x:Name="SuggestionsPanel" 
+                        Background="{DynamicResource MaterialDesignCardBackground}" 
+                        CornerRadius="8" Padding="12" Margin="0,12,0,0">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="💡 AI Smart Suggestions" 
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center"
+                                       Foreground="{DynamicResource MaterialDesignBody}"/>
+                            <Button x:Name="GetSuggestionsButton"
+                                    Content="Get Suggestions"
+                                    Click="GetAISuggestions_Click"
+                                    Style="{StaticResource MaterialDesignRaisedButton}"
+                                    Padding="8,4"
+                                    Margin="12,0,0,0"/>
+                        </StackPanel>
+                        <ItemsControl x:Name="SuggestionsList" Visibility="Collapsed">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="{DynamicResource PrimaryHueMidBrush}" 
+                                            CornerRadius="4" 
+                                            Padding="12,8" 
+                                            Margin="0,4"
+                                            Cursor="Hand"
+                                            MouseLeftButtonUp="SuggestionItem_MouseLeftButtonUp"
+                                            Tag="{Binding}">
+                                        <Border.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="View Full Suggestion" 
+                                                          Click="ViewFullSuggestion_Click"
+                                                          Tag="{Binding}">
+                                                    <MenuItem.Icon>
+                                                        <materialDesign:PackIcon Kind="Eye"/>
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                                <MenuItem Header="Apply Suggestion" 
+                                                          Click="ApplySuggestionFromMenu_Click"
+                                                          Tag="{Binding}">
+                                                    <MenuItem.Icon>
+                                                        <materialDesign:PackIcon Kind="Check"/>
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                                <MenuItem Header="Copy to Clipboard" 
+                                                          Click="CopySuggestion_Click"
+                                                          Tag="{Binding}">
+                                                    <MenuItem.Icon>
+                                                        <materialDesign:PackIcon Kind="ContentCopy"/>
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                            </ContextMenu>
+                                        </Border.ContextMenu>
+                                        <TextBlock Text="{Binding}" 
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="White"
+                                                   ToolTip="{Binding}"/>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Prompt Analysis -->
+                <Border Grid.Row="4" x:Name="AnalysisPanel" 
+                        Background="{DynamicResource MaterialDesignCardBackground}" 
+                        CornerRadius="8" Padding="12" Margin="0,12,0,0"
+                        Visibility="Collapsed">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="📊 Prompt Analysis" 
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource MaterialDesignBody}"/>
+                            <Border x:Name="QualityBadge" 
+                                    CornerRadius="10" 
+                                    Padding="8,2" 
+                                    Margin="12,0,0,0">
+                                <TextBlock x:Name="QualityScore" FontSize="11" Foreground="White"/>
+                            </Border>
+                        </StackPanel>
+                        <TextBlock x:Name="AnalysisSummary" 
+                                   TextWrapping="Wrap" 
+                                   Margin="0,0,0,8"
+                                   Foreground="{DynamicResource MaterialDesignBody}"/>
+                        <ItemsControl x:Name="ImprovementsList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                                        <TextBlock Text="💡 " FontSize="12"/>
+                                        <TextBlock Text="{Binding}" 
+                                                   TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource MaterialDesignBodyLight}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+            </Grid>
+            
+            <GridSplitter Grid.Column="1" 
+                          HorizontalAlignment="Stretch" 
+                          Background="{DynamicResource MaterialDesignDivider}"/>
+            
+            <!-- Right Panel - AI Response -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                
+                <!-- Action Buttons -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="8,0,0,12">
+                    <Button x:Name="TestPromptButton"
+                            Click="TestPrompt_Click"
+                            Style="{StaticResource MaterialDesignRaisedButton}"
+                            Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Play" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="Test Prompt"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="AnalyzeButton"
+                            Click="AnalyzePrompt_Click"
+                            Style="{StaticResource MaterialDesignRaisedButton}"
+                            Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="ChartBar" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="Analyze Quality"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="StopButton"
+                            Click="StopGeneration_Click"
+                            Style="{StaticResource MaterialDesignRaisedButton}"
+                            Background="#D32F2F"
+                            BorderBrush="#D32F2F"
+                            Visibility="Collapsed">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Stop" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="Stop"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+                
+                <!-- Response Area -->
+                <Border Grid.Row="1" 
+                        BorderBrush="{DynamicResource MaterialDesignDivider}" 
+                        BorderThickness="1" 
+                        CornerRadius="8"
+                        Background="{DynamicResource MaterialDesignCardBackground}">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <Border Grid.Row="0" Background="{DynamicResource PrimaryHueLightBrush}" Padding="12">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="AI Response" 
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource PrimaryHueDarkForegroundBrush}"/>
+                                <TextBlock x:Name="TokenCount" 
+                                           Margin="16,0,0,0"
+                                           FontSize="11"
+                                           VerticalAlignment="Center"
+                                           Foreground="{DynamicResource PrimaryHueDarkForegroundBrush}"/>
+                            </StackPanel>
+                        </Border>
+                        
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <local:MarkdownViewer x:Name="ResponseViewer" 
+                                                  Markdown=""
+                                                  Background="Transparent"
+                                                  Padding="12"/>
+                        </ScrollViewer>
+                        
+                        <!-- Loading Indicator -->
+                        <ProgressBar x:Name="LoadingIndicator"
+                                     Grid.Row="1"
+                                     IsIndeterminate="True"
+                                     VerticalAlignment="Top"
+                                     Visibility="Collapsed"/>
+                    </Grid>
+                </Border>
+                
+                <!-- Variations Panel -->
+                <Border Grid.Row="2" x:Name="VariationsPanel"
+                        Background="{DynamicResource MaterialDesignCardBackground}" 
+                        CornerRadius="8" Padding="12" Margin="0,12,0,0"
+                        Visibility="Collapsed"
+                        MaxHeight="200">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <TextBlock Grid.Row="0" Text="🔄 Prompt Variations" 
+                                   FontWeight="SemiBold" 
+                                   Margin="0,0,0,8"
+                                   Foreground="{DynamicResource MaterialDesignBody}"/>
+                        
+                        <ListBox Grid.Row="1" x:Name="VariationsList"
+                                 SelectionChanged="VariationsList_SelectionChanged"
+                                 Background="Transparent">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}" 
+                                               TextWrapping="Wrap"
+                                               Foreground="{DynamicResource MaterialDesignBody}"/>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+        
+        <!-- Footer -->
+        <Border Grid.Row="2" Background="{DynamicResource MaterialDesignCardBackground}" Padding="16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock x:Name="StatusText" 
+                               Text="Ready" 
+                               VerticalAlignment="Center"
+                               Foreground="{DynamicResource MaterialDesignBodyLight}"/>
+                </StackPanel>
+                
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button Content="Copy Response" 
+                            Click="CopyResponse_Click"
+                            Style="{StaticResource MaterialDesignRaisedButton}"
+                            Margin="0,0,8,0"/>
+                    <Button Content="Use as Prompt" 
+                            Click="UseAsPrompt_Click"
+                            Style="{StaticResource MaterialDesignRaisedButton}"
+                            Margin="0,0,8,0"/>
+                    <Button Content="Cancel" 
+                            Click="CancelButton_Click"
+                            Style="{StaticResource MaterialDesignRaisedButton}"
+                            Margin="0,0,8,0"/>
+                    <Button Content="Save Prompt" 
+                            Click="SaveButton_Click"
+                            Style="{StaticResource MaterialDesignRaisedButton}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+    </materialDesign:DialogHost>
+</Window>

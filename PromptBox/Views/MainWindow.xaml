@@ -58,15 +58,17 @@
                                 materialDesign:ButtonAssist.CornerRadius="4"
                                 Margin="0,0,0,8"/>
                         
-                        <Button Command="{Binding BrowseLibraryCommand}"
+                        <Button Content="Browse Library"
+                                Command="{Binding BrowseLibraryCommand}"
                                 Style="{StaticResource MaterialDesignRaisedButton}"
                                 materialDesign:ButtonAssist.CornerRadius="4"
-                                Margin="0,0,0,20">
-                            <StackPanel Orientation="Horizontal">
-                                <materialDesign:PackIcon Kind="Library" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                <TextBlock Text="Browse Library"/>
-                            </StackPanel>
-                        </Button>
+                                Margin="0,0,0,8"/>
+                        
+                        <Button Content="AI Prompt Builder"
+                                Command="{Binding OpenPromptBuilderCommand}"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                materialDesign:ButtonAssist.CornerRadius="4"
+                                Margin="0,0,0,20"/>
 
                         <Grid>
                             <Grid.ColumnDefinitions>
