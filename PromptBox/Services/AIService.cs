@@ -48,7 +48,6 @@ public class AIService : IAIService
                 AIProviders.OpenAI or AIProviders.Groq => await CallOpenAICompatibleAsync(model, apiKey, prompt, settings),
                 AIProviders.Anthropic => await CallAnthropicAsync(model, apiKey, prompt, settings),
                 AIProviders.Google => await CallGoogleAsync(model, apiKey, prompt, settings),
-                AIProviders.Mistral => await CallOpenAICompatibleAsync(model, apiKey, prompt, settings),
                 _ => new AIResponse { Success = false, Error = "Unsupported provider" }
             };
 
@@ -83,7 +82,7 @@ public class AIService : IAIService
 
         IAsyncEnumerable<string>? streamEnumerable = model.Provider switch
         {
-            AIProviders.OpenAI or AIProviders.Groq or AIProviders.Mistral => 
+            AIProviders.OpenAI or AIProviders.Groq => 
                 StreamOpenAICompatibleAsync(model, apiKey, prompt, settings, cancellationToken),
             AIProviders.Anthropic => 
                 StreamAnthropicAsync(model, apiKey, prompt, settings, cancellationToken),
@@ -309,7 +308,6 @@ Return each improved prompt on a separate line, numbered 1-5. Each should be a c
         AIProviders.OpenAI => "https://api.openai.com/v1/models",
         AIProviders.Anthropic => "https://api.anthropic.com/v1/models",
         AIProviders.Google => "https://generativelanguage.googleapis.com/v1beta/models",
-        AIProviders.Mistral => "https://api.mistral.ai/v1/models",
         AIProviders.Groq => "https://api.groq.com/openai/v1/models",
         _ => ""
     };
@@ -320,7 +318,6 @@ Return each improved prompt on a separate line, numbered 1-5. Each should be a c
         {
             case AIProviders.OpenAI:
             case AIProviders.Groq:
-            case AIProviders.Mistral:
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
                 break;
             case AIProviders.Anthropic:

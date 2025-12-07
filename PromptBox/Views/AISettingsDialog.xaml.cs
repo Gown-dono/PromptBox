@@ -93,7 +93,6 @@ public partial class AISettingsDialog : Window
                 (AIProviders.OpenAI, "OpenAI", "Cloud", ""),
                 (AIProviders.Anthropic, "Anthropic", "Brain", ""),
                 (AIProviders.Google, "Google", "Google", ""),
-                (AIProviders.Mistral, "Mistral AI", "Wrench", ""),
                 (AIProviders.Groq, "Groq", "Flash", "")
             };
 

@@ -25,7 +25,6 @@ public static class AIProviders
     public const string OpenAI = "OpenAI";
     public const string Anthropic = "Anthropic";
     public const string Google = "Google";
-    public const string Mistral = "Mistral";
     public const string Groq = "Groq";
     
     public static readonly AIModel[] AvailableModels = new[]
@@ -48,10 +47,6 @@ public static class AIProviders
         new AIModel { Id = "gemini-2.5-flash", Name = "Gemini 2.5 Flash", Provider = Google, ApiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models", MaxTokens = 1048576, Description = "Fast with thinking support" },
         new AIModel { Id = "gemini-2.5-flash-lite", Name = "Gemini 2.5 Flash-Lite", Provider = Google, ApiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models", MaxTokens = 1048576, Description = "Lightweight, efficient" },
         new AIModel { Id = "gemini-2.0-flash", Name = "Gemini 2.0 Flash", Provider = Google, ApiEndpoint = "https://generativelanguage.googleapis.com/v1beta/models", MaxTokens = 1048576, Description = "1M context, fast" },
-        
-        // Mistral Models
-        new AIModel { Id = "mistral-large-latest", Name = "Mistral Large", Provider = Mistral, ApiEndpoint = "https://api.mistral.ai/v1/chat/completions", MaxTokens = 128000, Description = "Most capable Mistral" },
-        new AIModel { Id = "mistral-small-latest", Name = "Mistral Small", Provider = Mistral, ApiEndpoint = "https://api.mistral.ai/v1/chat/completions", MaxTokens = 32000, Description = "Cost-effective" },
         
         // Groq Models (fast inference) - December 2025
         new AIModel { Id = "llama-3.3-70b-versatile", Name = "Llama 3.3 70B", Provider = Groq, ApiEndpoint = "https://api.groq.com/openai/v1/chat/completions", MaxTokens = 128000, Description = "Fast Llama inference" },
