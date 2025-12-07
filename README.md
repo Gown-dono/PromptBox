@@ -1,3 +1,31 @@
+<p align="center">
+  <img src="PromptBox/Assets/icon.ico" width="256" />
+</p>
+
+<p align="center">
+
+  <!-- Release -->
+  <a href="https://github.com/Gown-dono/PromptBox/releases">
+    <img src="https://img.shields.io/github/v/release/Gown-dono/PromptBox?style=for-the-badge" />
+  </a>
+
+  <!-- Downloads -->
+  <a href="https://github.com/Gown-dono/PromptBox/releases">
+    <img src="https://img.shields.io/github/downloads/Gown-dono/PromptBox/total?style=for-the-badge" />
+  </a>
+
+  <!-- License -->
+  <a href="https://github.com/Gown-dono/PromptBox/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/Gown-dono/PromptBox?style=for-the-badge" />
+  </a>
+
+  <!-- Issues -->
+  <a href="https://github.com/Gown-dono/PromptBox/issues">
+    <img src="https://img.shields.io/github/issues/Gown-dono/PromptBox?style=for-the-badge" />
+  </a>
+
+</p>
+  
 # PromptBox — AI Prompt Manager on Your Desktop
 
 A modern, feature-rich WPF desktop application for managing AI prompts. Create, edit, organize, search, and export prompts for ChatGPT, GitHub Copilot, Claude, and other AI models.
