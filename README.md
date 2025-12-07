@@ -1,6 +1,6 @@
-# PromptBox — Offline AI Prompt Manager
+# PromptBox — AI Prompt Manager on Your Desktop
 
-A modern, feature-rich WPF desktop application for managing AI prompts. Create, edit, organize, search, and export prompts for ChatGPT, GitHub Copilot, Claude, and other AI models. Works completely offline with local storage.
+A modern, feature-rich WPF desktop application for managing AI prompts. Create, edit, organize, search, and export prompts for ChatGPT, GitHub Copilot, Claude, and other AI models.
 
 ![PromptBox Screenshot](Screenshot.png)
 
@@ -24,7 +24,7 @@ A modern, feature-rich WPF desktop application for managing AI prompts. Create, 
 - **Modern UI**: Built with Material Design for a clean, professional look
 - **Theme Support**: Toggle between Light and Dark modes
 - **Clipboard Integration**: One-click copy to clipboard
-- **Offline First**: All data stored locally using LiteDB
+- **Local First**: All data stored locally using LiteDB
 - **Fast Performance**: Optimized search and filtering
 
 ## Architecture
