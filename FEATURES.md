@@ -218,6 +218,30 @@
 - Import to editor with one click
 - Customize and save as your own prompt
 
+### 12. Version History (Git-like)
+
+#### Automatic Versioning
+- Previous versions saved automatically on each edit
+- Up to 50 versions stored per prompt
+- Versions include all metadata (title, category, tags, content)
+
+#### Version Browser
+- Click "History" button to view all versions
+- See timestamp for each version
+- Visual diff showing changes between versions
+- Color-coded: green for additions, red for deletions
+
+#### Restore Previous Versions
+- One-click restore to any previous version
+- Confirmation dialog before restore
+- Restored content loaded into editor for review
+- Save to apply the restored version
+
+#### Version Cleanup
+- Versions automatically deleted when prompt is deleted
+- Oldest versions pruned when limit reached
+- Efficient storage using LiteDB
+
 ## Keyboard Shortcuts
 
 Currently, the application uses standard Windows shortcuts:
@@ -230,12 +254,11 @@ Currently, the application uses standard Windows shortcuts:
 
 Potential features for future versions:
 - Keyboard shortcuts for common actions
-- Version history for prompts
 - Favorites/starred prompts
 - Community prompt library (online)
+- Version comparison between any two versions
 - Prompt sharing (export as link)
 - Cloud sync option
-- AI-powered prompt suggestions
 - Prompt statistics and analytics
 - Custom themes
 - Plugin system

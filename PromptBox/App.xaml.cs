@@ -39,6 +39,7 @@ public partial class App : Application
         services.AddSingleton<IExportService, ExportService>();
         services.AddSingleton<ISearchService, SearchService>();
         services.AddSingleton<IPromptLibraryService, PromptLibraryService>();
+        services.AddSingleton<IVersioningService, VersioningService>();
 
         // ViewModels
         services.AddTransient<MainViewModel>();

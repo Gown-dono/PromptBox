@@ -24,6 +24,7 @@ public partial class MainViewModel : ObservableObject
     private readonly IExportService _exportService;
     private readonly ISearchService _searchService;
     private readonly IPromptLibraryService _promptLibraryService;
+    private readonly IVersioningService _versioningService;
     
     public SnackbarMessageQueue? SnackbarMessageQueue { get; set; }
 
@@ -71,13 +72,15 @@ public partial class MainViewModel : ObservableObject
         IThemeService themeService,
         IExportService exportService,
         ISearchService searchService,
-        IPromptLibraryService promptLibraryService)
+        IPromptLibraryService promptLibraryService,
+        IVersioningService versioningService)
     {
         _databaseService = databaseService;
         _themeService = themeService;
         _exportService = exportService;
         _searchService = searchService;
         _promptLibraryService = promptLibraryService;
+        _versioningService = versioningService;
         
         IsDarkMode = _themeService.IsDarkMode;
         
@@ -158,6 +161,13 @@ public partial class MainViewModel : ObservableObject
         }
 
         var prompt = SelectedPrompt ?? new Prompt();
+        
+        // Save version before updating (only for existing prompts with changes)
+        if (prompt.Id != 0 && HasChanges(prompt))
+        {
+            await _versioningService.SaveVersionAsync(prompt);
+        }
+        
         prompt.Title = EditTitle;
         prompt.Category = EditCategory;
         prompt.Tags = EditTags.Split(',', System.StringSplitOptions.RemoveEmptyEntries)
@@ -170,6 +180,20 @@ public partial class MainViewModel : ObservableObject
         await LoadData();
         
         SnackbarMessageQueue?.Enqueue("✓ Prompt saved successfully!");
+    }
+    
+    private bool HasChanges(Prompt prompt)
+    {
+        var currentTags = string.Join(", ", prompt.Tags);
+        var editTagsNormalized = string.Join(", ", EditTags
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(t => t.Trim())
+            .Where(t => !string.IsNullOrWhiteSpace(t)));
+        
+        return prompt.Title != EditTitle ||
+               prompt.Category != EditCategory ||
+               prompt.Content != EditContent ||
+               currentTags != editTagsNormalized;
     }
 
     [RelayCommand]
@@ -230,6 +254,7 @@ public partial class MainViewModel : ObservableObject
 
         if (result is bool confirmed && confirmed)
         {
+            await _versioningService.DeleteVersionsForPromptAsync(SelectedPrompt.Id);
             await _databaseService.DeletePromptAsync(SelectedPrompt.Id);
             await LoadData();
             ClearEditor();
@@ -374,6 +399,32 @@ public partial class MainViewModel : ObservableObject
             EditContent = dialog.ImportedPrompt.Content;
             
             SnackbarMessageQueue?.Enqueue("✓ Template loaded! Edit and save to add to your prompts.");
+        }
+    }
+
+    [RelayCommand]
+    private void ViewHistory()
+    {
+        if (SelectedPrompt == null || SelectedPrompt.Id == 0)
+        {
+            SnackbarMessageQueue?.Enqueue("⚠️ Please select a saved prompt to view history");
+            return;
+        }
+
+        var dialog = new VersionHistoryDialog(_versioningService, SelectedPrompt)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        if (dialog.ShowDialog() == true && dialog.RestoredVersion != null)
+        {
+            // Restore the selected version to the editor
+            EditTitle = dialog.RestoredVersion.Title;
+            EditCategory = dialog.RestoredVersion.Category;
+            EditTags = string.Join(", ", dialog.RestoredVersion.Tags);
+            EditContent = dialog.RestoredVersion.Content;
+            
+            SnackbarMessageQueue?.Enqueue("✓ Version restored! Click Save to apply changes.");
         }
     }
 

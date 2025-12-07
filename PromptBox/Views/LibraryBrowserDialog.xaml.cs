@@ -1,5 +1,6 @@
 using PromptBox.Models;
 using PromptBox.Services;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
@@ -82,21 +83,26 @@ public partial class LibraryBrowserDialog : Window, INotifyPropertyChanged
     private void LoadData()
     {
         var categories = _libraryService.GetCategories();
-        Categories = new ObservableCollection<string>(categories);
+        // Add "All" option at the beginning
+        var allCategories = new List<string> { "All Categories" };
+        allCategories.AddRange(categories);
+        Categories = new ObservableCollection<string>(allCategories);
         ApplyFilters();
     }
 
     private void ApplyFilters()
     {
-        var templates = string.IsNullOrWhiteSpace(SelectedCategory)
+        var effectiveCategory = SelectedCategory == "All Categories" ? string.Empty : SelectedCategory;
+        
+        var templates = string.IsNullOrWhiteSpace(effectiveCategory)
             ? _libraryService.GetAllTemplates()
-            : _libraryService.GetTemplatesByCategory(SelectedCategory);
+            : _libraryService.GetTemplatesByCategory(effectiveCategory);
 
         if (!string.IsNullOrWhiteSpace(SearchQuery))
         {
             templates = _libraryService.SearchTemplates(SearchQuery)
-                .Where(t => string.IsNullOrWhiteSpace(SelectedCategory) || 
-                           t.Category == SelectedCategory)
+                .Where(t => string.IsNullOrWhiteSpace(effectiveCategory) || 
+                           t.Category == effectiveCategory)
                 .ToList();
         }
 
