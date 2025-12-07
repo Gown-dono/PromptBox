@@ -14,7 +14,8 @@ A modern, feature-rich WPF desktop application for managing AI prompts. Create, 
 - **Tag System**: Multi-tag support with visual tag display and filtering
 - **Category Organization**: Organize prompts by categories
 - **Prompt Library Browser**: Browse and import prompts from a curated library
-- **Version History (Git-like)**: One-click restore to any previous version with visual diff 
+- **Version History (Git-like)**: One-click restore to any previous version with visual diff
+- **AI Prompt Builder**: Create and test prompts with multiple AI models
 ### Import/Export
 - Export individual prompts as Markdown (`.md`) or plain text (`.txt`)
 - Export all prompts as JSON for backup
