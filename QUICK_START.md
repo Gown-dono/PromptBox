@@ -1,9 +1,6 @@
 # Quick Start Guide - PromptBox
 
-## ✅ Build Status
-**SUCCESS** - The application builds and runs without errors!
-
-## 🚀 Running the Application
+## Running the Application
 
 ### Option 1: Using .NET CLI
 ```bash
@@ -21,7 +18,7 @@ cd PromptBox/bin/Debug/net8.0-windows
 ./PromptBox.exe
 ```
 
-## 📝 First Steps
+## First Steps
 
 ### 1. Create Your First Prompt
 1. Click **"New Prompt"** button in the left sidebar
@@ -58,12 +55,7 @@ cd PromptBox/bin/Debug/net8.0-windows
 - **All Prompts**: Click "Export All (JSON)" for backup
 - **Import**: Click "Import (JSON)" to restore from backup
 
-### 5. Toggle Theme
-- Click the theme icon (🌓) in the top-right corner
-- Switch between Light and Dark modes
-- Your preference is saved automatically
-
-## 🎯 Example Prompts to Create
+## Example Prompts to Create
 
 ### 1. Code Explanation Prompt
 **Category**: Development  
@@ -106,7 +98,7 @@ Create comprehensive documentation for this code including:
 - Contributing guidelines
 ```
 
-## 💡 Tips
+## Tips
 
 1. **Use Markdown**: Format your prompts with headers, lists, code blocks, and emphasis
 2. **Organize with Categories**: Group similar prompts together
@@ -114,7 +106,7 @@ Create comprehensive documentation for this code including:
 4. **Export Regularly**: Back up your prompts as JSON
 5. **Copy Quickly**: Use the clipboard button for instant copying
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Application won't start
 - Ensure .NET 8.0 Runtime is installed
@@ -128,7 +120,7 @@ Create comprehensive documentation for this code including:
 - Check that the application has write permissions
 - Settings are stored in user profile
 
-## 📂 Data Location
+## Data Location
 
 Your prompts are stored locally at:
 ```
@@ -137,7 +129,7 @@ PromptBox/Data/promptbox.db
 
 Back up this file to preserve your prompts!
 
-## 🎨 Keyboard Shortcuts
+## Keyboard Shortcuts
 
 Standard Windows shortcuts work:
 - `Ctrl+C`: Copy
@@ -150,7 +142,3 @@ Standard Windows shortcuts work:
 - Read [README.md](README.md) for full feature documentation
 - Check [FEATURES.md](FEATURES.md) for detailed feature descriptions
 - See [BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md) for development setup
-
----
-
-Enjoy using PromptBox! 🎉
