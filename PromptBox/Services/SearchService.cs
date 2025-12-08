@@ -18,10 +18,10 @@ public class SearchService : ISearchService
         var query = searchQuery.ToLowerInvariant();
         
         return prompts.Where(p =>
-            p.Title.ToLowerInvariant().Contains(query) ||
-            p.Category.ToLowerInvariant().Contains(query) ||
-            p.Content.ToLowerInvariant().Contains(query) ||
-            p.Tags.Any(t => t.ToLowerInvariant().Contains(query))
+            (p.Title ?? string.Empty).ToLowerInvariant().Contains(query) ||
+            (p.Category ?? string.Empty).ToLowerInvariant().Contains(query) ||
+            (p.Content ?? string.Empty).ToLowerInvariant().Contains(query) ||
+            (p.Tags ?? Enumerable.Empty<string>()).Any(t => (t ?? string.Empty).ToLowerInvariant().Contains(query))
         ).ToList();
     }
 
@@ -31,7 +31,7 @@ public class SearchService : ISearchService
             return prompts;
 
         return prompts.Where(p => 
-            p.Category.Equals(category, StringComparison.OrdinalIgnoreCase)
+            (p.Category ?? string.Empty).Equals(category, StringComparison.OrdinalIgnoreCase)
         ).ToList();
     }
 
@@ -41,7 +41,7 @@ public class SearchService : ISearchService
             return prompts;
 
         return prompts.Where(p => 
-            p.Tags.Any(t => t.Equals(tag, StringComparison.OrdinalIgnoreCase))
+            (p.Tags ?? Enumerable.Empty<string>()).Any(t => (t ?? string.Empty).Equals(tag, StringComparison.OrdinalIgnoreCase))
         ).ToList();
     }
 }

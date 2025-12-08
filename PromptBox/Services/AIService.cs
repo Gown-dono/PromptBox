@@ -170,8 +170,20 @@ Return only valid JSON, no markdown or explanations.";
         {
             // Extract JSON from potential markdown code blocks
             var jsonContent = ExtractJsonFromResponse(response.Content);
+            
+            if (string.IsNullOrWhiteSpace(jsonContent))
+            {
+                // AI didn't return valid JSON, try to extract useful info from text response
+                return new PromptAnalysis
+                {
+                    QualityScore = 50,
+                    Summary = "Analysis completed (non-JSON response)",
+                    Improvements = new List<string> { response.Content.Length > 200 ? response.Content.Substring(0, 200) + "..." : response.Content }
+                };
+            }
+            
             var json = JsonNode.Parse(jsonContent);
-            if (json == null) throw new JsonException("Invalid JSON");
+            if (json == null) throw new JsonException("Invalid JSON structure");
 
             return new PromptAnalysis
             {
@@ -184,24 +196,36 @@ Return only valid JSON, no markdown or explanations.";
                 SpecificityRating = json["specificityRating"]?.GetValue<string>() ?? "Medium"
             };
         }
+        catch (JsonException)
+        {
+            // JSON parsing failed, return the raw response as feedback
+            return new PromptAnalysis
+            {
+                QualityScore = 50,
+                Summary = "Analysis completed (format issue)",
+                Improvements = new List<string> { response.Content.Length > 300 ? response.Content.Substring(0, 300) + "..." : response.Content }
+            };
+        }
         catch (Exception ex)
         {
             return new PromptAnalysis
             {
                 QualityScore = 50,
                 Summary = "Analysis parsing failed",
-                Improvements = new List<string> { $"Parse error: {ex.Message}" }
+                Improvements = new List<string> { $"Error: {ex.Message}" }
             };
         }
     }
 
     /// <summary>
-    /// Extracts JSON content from AI response, handling markdown code blocks
+    /// Extracts JSON content from AI response, handling markdown code blocks.
+    /// Uses brace-counting as a last resort for responses with extra commentary around JSON.
+    /// Note: This approach may still fail on malformed responses or JSON within strings.
     /// </summary>
-    private static string ExtractJsonFromResponse(string content)
+    private static string? ExtractJsonFromResponse(string content)
     {
         if (string.IsNullOrWhiteSpace(content))
-            return content;
+            return null;
 
         var trimmed = content.Trim();
         
@@ -227,15 +251,55 @@ Return only valid JSON, no markdown or explanations.";
             }
         }
         
-        // Try to find JSON object in the response (starts with { and ends with })
+        // Last resort: Use brace-counting to find a balanced JSON object.
+        // This handles responses with extra commentary before/after the JSON.
         var firstBrace = trimmed.IndexOf('{');
-        var lastBrace = trimmed.LastIndexOf('}');
-        if (firstBrace >= 0 && lastBrace > firstBrace)
+        if (firstBrace >= 0)
         {
-            return trimmed.Substring(firstBrace, lastBrace - firstBrace + 1);
+            int braceCount = 0;
+            bool inString = false;
+            bool escape = false;
+            
+            for (int i = firstBrace; i < trimmed.Length; i++)
+            {
+                char c = trimmed[i];
+                
+                if (escape)
+                {
+                    escape = false;
+                    continue;
+                }
+                
+                if (c == '\\' && inString)
+                {
+                    escape = true;
+                    continue;
+                }
+                
+                if (c == '"' && !escape)
+                {
+                    inString = !inString;
+                    continue;
+                }
+                
+                if (!inString)
+                {
+                    if (c == '{')
+                        braceCount++;
+                    else if (c == '}')
+                        braceCount--;
+                    
+                    // Found balanced JSON object
+                    if (braceCount == 0)
+                    {
+                        return trimmed.Substring(firstBrace, i - firstBrace + 1);
+                    }
+                }
+            }
         }
 
-        return trimmed;
+        // No valid JSON found
+        return null;
     }
 
 

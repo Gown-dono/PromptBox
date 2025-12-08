@@ -593,10 +593,27 @@ public partial class PromptBuilderDialog : Window
         {
             if (!string.IsNullOrWhiteSpace(noteInput.Text))
             {
+                // Safely compute display name
+                var lines = noteInput.Text.Split('\n');
+                var firstLine = lines.Length > 0 ? lines[0].Trim() : string.Empty;
+                string displayName;
+                if (string.IsNullOrWhiteSpace(firstLine))
+                {
+                    displayName = "Note";
+                }
+                else if (firstLine.Length > 30)
+                {
+                    displayName = firstLine.Substring(0, 30) + "...";
+                }
+                else
+                {
+                    displayName = firstLine;
+                }
+                
                 var item = new ContextItem
                 {
                     Type = ContextItemType.Note,
-                    DisplayName = noteInput.Text.Length > 30 ? noteInput.Text.Substring(0, 30) + "..." : noteInput.Text.Split('\n')[0],
+                    DisplayName = displayName,
                     FullPath = "User note",
                     Content = noteInput.Text,
                     SizeText = $"{noteInput.Text.Length} chars"

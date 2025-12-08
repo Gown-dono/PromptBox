@@ -482,8 +482,9 @@ public partial class MainViewModel : ObservableObject
             {
                 var oldId = prompt.Id;
                 prompt.Id = 0; // Reset ID to create new entries
-                await _databaseService.SavePromptAsync(prompt);
-                idMapping[oldId] = prompt.Id;
+                var newId = await _databaseService.SavePromptAsync(prompt);
+                prompt.Id = newId; // Update the in-memory object with the new ID
+                idMapping[oldId] = newId;
             }
             
             // Update version PromptIds to match new prompt IDs and save

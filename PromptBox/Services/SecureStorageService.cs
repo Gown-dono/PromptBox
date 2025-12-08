@@ -165,32 +165,49 @@ public class SecureStorageService : ISecureStorageService
     }
 
     /// <summary>
-    /// Removes API key records that cannot be decrypted (corrupted or from different user context)
+    /// Removes API key records that cannot be decrypted due to corrupted or cross-user-context DPAPI blobs.
+    /// This cleanup is specifically for decryption failures, not for missing or empty keys.
     /// </summary>
     public async Task<int> CleanupInvalidKeysAsync()
     {
-        var providers = await Task.Run(() =>
+        return await Task.Run(() =>
         {
+            int removedCount = 0;
+            
             using var db = new LiteDatabase(_connectionString);
             var collection = db.GetCollection<APIKeyConfig>("apikeys");
-            return collection.FindAll()
-                .Select(k => k.Provider)
-                .Distinct()
-                .ToList();
-        });
-        
-        int removedCount = 0;
-        foreach (var provider in providers)
-        {
-            var key = await GetApiKeyAsync(provider);
-            if (string.IsNullOrEmpty(key))
+            var allConfigs = collection.FindAll().ToList();
+            
+            foreach (var config in allConfigs)
             {
-                // Key exists but can't be decrypted - remove it
-                await DeleteApiKeyAsync(provider);
-                removedCount++;
+                // Skip records with no encrypted key - these are just absent, not corrupted
+                if (string.IsNullOrEmpty(config.EncryptedKey))
+                    continue;
+                
+                try
+                {
+                    // Attempt to decrypt the key directly
+                    Decrypt(config.EncryptedKey);
+                    // Decryption succeeded, key is valid - do nothing
+                }
+                catch (CryptographicException)
+                {
+                    // Decryption failed due to DPAPI issue (corrupted blob or different user context)
+                    // This is the only case where we should delete the key
+                    collection.Delete(config.Id);
+                    removedCount++;
+                }
+                catch (FormatException)
+                {
+                    // Base64 decoding failed - corrupted data
+                    collection.Delete(config.Id);
+                    removedCount++;
+                }
+                // Other exceptions (e.g., temporary failures) are not treated as invalid keys
             }
-        }
-        return removedCount;
+            
+            return removedCount;
+        });
     }
 
     private string Encrypt(string plainText)
