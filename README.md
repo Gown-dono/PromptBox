@@ -42,12 +42,9 @@ A modern, feature-rich WPF desktop application for managing AI prompts. Create, 
 - **Prompt Workflows**: Run complete multi-step prompt workflows with a single click. Workflows chain multiple prompts together where each step's output feeds into the next step.
 ### Import/Export
 - Export individual prompts as Markdown (`.md`) or plain text (`.txt`)
-- Export all prompts as JSON for backup
-- Import prompts from JSON files
-- Export Prompts with Version History
-- Import Prompts with Version History
-- Export Workflows (user-created)
-- Import Workflows (user-created)
+- Import/Export all prompts as JSON for backup
+- Import/Export Prompts with Version History
+- Import/Export Workflows (user-created)
 
 ### User Experience
 - **Modern UI**: Built with Material Design for a clean, professional look
