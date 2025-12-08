@@ -104,6 +104,30 @@ public class VersioningService : IVersioningService
         });
     }
 
+    public async Task<List<PromptVersion>> GetAllVersionsAsync()
+    {
+        return await Task.Run(() =>
+        {
+            using var db = new LiteDatabase(_connectionString);
+            var collection = db.GetCollection<PromptVersion>("versions");
+            return collection.FindAll().ToList();
+        });
+    }
+
+    public async Task SaveVersionsAsync(List<PromptVersion> versions)
+    {
+        await Task.Run(() =>
+        {
+            using var db = new LiteDatabase(_connectionString);
+            var collection = db.GetCollection<PromptVersion>("versions");
+            foreach (var version in versions)
+            {
+                version.Id = 0; // Reset ID to create new entries
+                collection.Insert(version);
+            }
+        });
+    }
+
     public string GetDiff(string oldContent, string newContent)
     {
         if (string.IsNullOrEmpty(oldContent) && string.IsNullOrEmpty(newContent))

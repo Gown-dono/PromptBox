@@ -1,4 +1,6 @@
 using PromptBox.Models;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace PromptBox.Services;
 
@@ -7,9 +9,11 @@ namespace PromptBox.Services;
 /// </summary>
 public interface IVersioningService
 {
-    System.Threading.Tasks.Task SaveVersionAsync(Prompt prompt);
-    System.Threading.Tasks.Task<System.Collections.Generic.List<PromptVersion>> GetVersionsAsync(int promptId);
-    System.Threading.Tasks.Task<PromptVersion?> GetVersionAsync(int versionId);
-    System.Threading.Tasks.Task DeleteVersionsForPromptAsync(int promptId);
+    Task SaveVersionAsync(Prompt prompt);
+    Task<List<PromptVersion>> GetVersionsAsync(int promptId);
+    Task<List<PromptVersion>> GetAllVersionsAsync();
+    Task<PromptVersion?> GetVersionAsync(int versionId);
+    Task DeleteVersionsForPromptAsync(int promptId);
+    Task SaveVersionsAsync(List<PromptVersion> versions);
     string GetDiff(string oldContent, string newContent);
 }
