@@ -27,7 +27,6 @@ public partial class VersionHistoryDialog : Window
         _versioningService = versioningService;
         _currentPrompt = currentPrompt;
         InitializeComponent();
-        PromptTitleText.Text = $"Prompt: {currentPrompt.Title}";
         LoadVersions();
     }
 

@@ -221,29 +221,33 @@
                 <Border Grid.Row="2" Background="{DynamicResource MaterialDesignCardBackground}" 
                         CornerRadius="8" Padding="12" Margin="0,12,0,0">
                     <StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                            <TextBlock Text="📝 Variable Templates" 
-                                       FontWeight="SemiBold"
-                                       Foreground="{DynamicResource MaterialDesignBody}"/>
-                            <TextBlock Text=" (Use {}{variable}{} syntax)" 
-                                       FontSize="11"
-                                       Foreground="{DynamicResource MaterialDesignBodyLight}"
-                                       VerticalAlignment="Center"/>
-                        </StackPanel>
-                        <WrapPanel>
-                            <Button Content="{}{topic}{}" Click="InsertVariable_Click" Tag="topic"
-                                    Style="{StaticResource MaterialDesignRaisedButton}" Padding="8,4" Margin="0,0,4,4"/>
-                            <Button Content="{}{context}{}" Click="InsertVariable_Click" Tag="context"
-                                    Style="{StaticResource MaterialDesignRaisedButton}" Padding="8,4" Margin="0,0,4,4"/>
-                            <Button Content="{}{format}{}" Click="InsertVariable_Click" Tag="format"
-                                    Style="{StaticResource MaterialDesignRaisedButton}" Padding="8,4" Margin="0,0,4,4"/>
-                            <Button Content="{}{tone}{}" Click="InsertVariable_Click" Tag="tone"
-                                    Style="{StaticResource MaterialDesignRaisedButton}" Padding="8,4" Margin="0,0,4,4"/>
-                            <Button Content="{}{audience}{}" Click="InsertVariable_Click" Tag="audience"
-                                    Style="{StaticResource MaterialDesignRaisedButton}" Padding="8,4" Margin="0,0,4,4"/>
-                            <Button Content="{}{length}{}" Click="InsertVariable_Click" Tag="length"
-                                    Style="{StaticResource MaterialDesignRaisedButton}" Padding="8,4" Margin="0,0,4,4"/>
-                        </WrapPanel>
+                        <Expander Foreground="{DynamicResource MaterialDesignBody}">
+                            <Expander.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="📝 Variable Templates" 
+                                               FontWeight="SemiBold"
+                                               Foreground="{DynamicResource MaterialDesignBody}"/>
+                                    <TextBlock Text=" (Use {}{{}variable{}{}} syntax)" 
+                                               FontSize="11"
+                                               Foreground="{DynamicResource MaterialDesignBodyLight}"
+                                               VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Expander.Header>
+                            <WrapPanel Margin="24,8,0,0">
+                                <Button Content="{}{{}topic{}{}}" Click="InsertVariable_Click" Tag="topic"
+                                        Style="{StaticResource MaterialDesignRaisedButton}" Padding="8,4" Margin="0,0,4,4"/>
+                                <Button Content="{}{{}context{}{}}" Click="InsertVariable_Click" Tag="context"
+                                        Style="{StaticResource MaterialDesignRaisedButton}" Padding="8,4" Margin="0,0,4,4"/>
+                                <Button Content="{}{{}format{}{}}" Click="InsertVariable_Click" Tag="format"
+                                        Style="{StaticResource MaterialDesignRaisedButton}" Padding="8,4" Margin="0,0,4,4"/>
+                                <Button Content="{}{{}tone{}{}}" Click="InsertVariable_Click" Tag="tone"
+                                        Style="{StaticResource MaterialDesignRaisedButton}" Padding="8,4" Margin="0,0,4,4"/>
+                                <Button Content="{}{{}audience{}{}}" Click="InsertVariable_Click" Tag="audience"
+                                        Style="{StaticResource MaterialDesignRaisedButton}" Padding="8,4" Margin="0,0,4,4"/>
+                                <Button Content="{}{{}length{}{}}" Click="InsertVariable_Click" Tag="length"
+                                        Style="{StaticResource MaterialDesignRaisedButton}" Padding="8,4" Margin="0,0,4,4"/>
+                            </WrapPanel>
+                        </Expander>
                     </StackPanel>
                 </Border>
                 
@@ -378,6 +382,20 @@
                         <StackPanel Orientation="Horizontal">
                             <materialDesign:PackIcon Kind="ChartBar" VerticalAlignment="Center" Margin="0,0,6,0"/>
                             <TextBlock Text="Analyze Quality"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="ContextButton"
+                            Click="OpenContextDialog_Click"
+                            Style="{StaticResource MaterialDesignRaisedButton}"
+                            Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Paperclip" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="Context"/>
+                            <TextBlock x:Name="ContextButtonBadge" 
+                                       Text="" 
+                                       FontSize="10"
+                                       VerticalAlignment="Center"
+                                       Margin="4,0,0,0"/>
                         </StackPanel>
                     </Button>
                     <Button x:Name="StopButton"

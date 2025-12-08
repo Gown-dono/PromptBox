@@ -151,7 +151,7 @@ Return only valid JSON, no markdown or explanations.";
             ModelId = settings.ModelId,
             Temperature = 0.3,
             MaxOutputTokens = 1024,
-            SystemPrompt = "You are a prompt engineering expert. Analyze prompts and return structured JSON feedback."
+            SystemPrompt = "You are a prompt engineering expert. Analyze prompts and return structured JSON feedback. Return ONLY raw JSON, no markdown code blocks."
         };
 
         var response = await GenerateAsync(analysisPrompt, analysisSettings);
@@ -168,7 +168,9 @@ Return only valid JSON, no markdown or explanations.";
 
         try
         {
-            var json = JsonNode.Parse(response.Content);
+            // Extract JSON from potential markdown code blocks
+            var jsonContent = ExtractJsonFromResponse(response.Content);
+            var json = JsonNode.Parse(jsonContent);
             if (json == null) throw new JsonException("Invalid JSON");
 
             return new PromptAnalysis
@@ -182,16 +184,60 @@ Return only valid JSON, no markdown or explanations.";
                 SpecificityRating = json["specificityRating"]?.GetValue<string>() ?? "Medium"
             };
         }
-        catch
+        catch (Exception ex)
         {
             return new PromptAnalysis
             {
                 QualityScore = 50,
                 Summary = "Analysis parsing failed",
-                Improvements = new List<string> { "Could not parse analysis results" }
+                Improvements = new List<string> { $"Parse error: {ex.Message}" }
             };
         }
     }
+
+    /// <summary>
+    /// Extracts JSON content from AI response, handling markdown code blocks
+    /// </summary>
+    private static string ExtractJsonFromResponse(string content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            return content;
+
+        var trimmed = content.Trim();
+        
+        // Handle ```json ... ``` format
+        if (trimmed.StartsWith("```json", StringComparison.OrdinalIgnoreCase))
+        {
+            var startIndex = trimmed.IndexOf('\n') + 1;
+            var endIndex = trimmed.LastIndexOf("```", StringComparison.Ordinal);
+            if (startIndex > 0 && endIndex > startIndex)
+            {
+                return trimmed.Substring(startIndex, endIndex - startIndex).Trim();
+            }
+        }
+        
+        // Handle ``` ... ``` format (without language specifier)
+        if (trimmed.StartsWith("```") && !trimmed.StartsWith("```json", StringComparison.OrdinalIgnoreCase))
+        {
+            var startIndex = trimmed.IndexOf('\n') + 1;
+            var endIndex = trimmed.LastIndexOf("```", StringComparison.Ordinal);
+            if (startIndex > 0 && endIndex > startIndex)
+            {
+                return trimmed.Substring(startIndex, endIndex - startIndex).Trim();
+            }
+        }
+        
+        // Try to find JSON object in the response (starts with { and ends with })
+        var firstBrace = trimmed.IndexOf('{');
+        var lastBrace = trimmed.LastIndexOf('}');
+        if (firstBrace >= 0 && lastBrace > firstBrace)
+        {
+            return trimmed.Substring(firstBrace, lastBrace - firstBrace + 1);
+        }
+
+        return trimmed;
+    }
+
 
     public async Task<List<string>> GenerateVariationsAsync(string prompt, int count, AIGenerationSettings settings)
     {
