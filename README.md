@@ -46,8 +46,8 @@ A modern, feature-rich WPF desktop application for managing AI prompts. Create, 
 - Import prompts from JSON files
 - Export Prompts with Version History
 - Import Prompts with Version History
-- Export Workflows
-- Import Workflows 
+- Export Workflows (user-created)
+- Import Workflows (user-created)
 
 ### User Experience
 - **Modern UI**: Built with Material Design for a clean, professional look
