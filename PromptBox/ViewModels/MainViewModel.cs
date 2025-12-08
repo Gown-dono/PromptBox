@@ -28,6 +28,7 @@ public partial class MainViewModel : ObservableObject
     private readonly ISecureStorageService _secureStorageService;
     private readonly IAIService _aiService;
     private readonly IPromptSuggestionService _promptSuggestionService;
+    private readonly IWorkflowService _workflowService;
     
     public SnackbarMessageQueue? SnackbarMessageQueue { get; set; }
 
@@ -79,7 +80,8 @@ public partial class MainViewModel : ObservableObject
         IVersioningService versioningService,
         ISecureStorageService secureStorageService,
         IAIService aiService,
-        IPromptSuggestionService promptSuggestionService)
+        IPromptSuggestionService promptSuggestionService,
+        IWorkflowService workflowService)
     {
         _databaseService = databaseService;
         _themeService = themeService;
@@ -90,6 +92,7 @@ public partial class MainViewModel : ObservableObject
         _secureStorageService = secureStorageService;
         _aiService = aiService;
         _promptSuggestionService = promptSuggestionService;
+        _workflowService = workflowService;
         
         IsDarkMode = _themeService.IsDarkMode;
         
@@ -391,6 +394,114 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async System.Threading.Tasks.Task ExportWorkflows()
+    {
+        var customWorkflows = await _workflowService.GetCustomWorkflowsAsync();
+        
+        if (!customWorkflows.Any())
+        {
+            SnackbarMessageQueue?.Enqueue("⚠️ No custom workflows to export");
+            return;
+        }
+
+        var dialog = new SaveFileDialog
+        {
+            Filter = "JSON files (*.json)|*.json",
+            FileName = "workflows.json"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            await _exportService.ExportWorkflowsAsJsonAsync(customWorkflows, dialog.FileName);
+            SnackbarMessageQueue?.Enqueue($"✓ Exported {customWorkflows.Count} workflows!");
+        }
+    }
+
+    [RelayCommand]
+    private async System.Threading.Tasks.Task ImportWorkflows()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Filter = "JSON files (*.json)|*.json"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            var importedWorkflows = await _exportService.ImportWorkflowsFromJsonAsync(dialog.FileName);
+            
+            foreach (var workflow in importedWorkflows)
+            {
+                workflow.Id = 0; // Reset ID to create new entries
+                workflow.IsBuiltIn = false;
+                await _workflowService.SaveWorkflowAsync(workflow);
+            }
+            
+            SnackbarMessageQueue?.Enqueue($"✓ Imported {importedWorkflows.Count} workflows!");
+        }
+    }
+
+    [RelayCommand]
+    private async System.Threading.Tasks.Task ExportWithHistory()
+    {
+        if (!Prompts.Any())
+        {
+            SnackbarMessageQueue?.Enqueue("⚠️ No prompts to export");
+            return;
+        }
+
+        var dialog = new SaveFileDialog
+        {
+            Filter = "JSON files (*.json)|*.json",
+            FileName = "prompts_with_history.json"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            var allVersions = await _versioningService.GetAllVersionsAsync();
+            await _exportService.ExportPromptsWithHistoryAsJsonAsync(Prompts.ToList(), allVersions, dialog.FileName);
+            SnackbarMessageQueue?.Enqueue($"✓ Exported {Prompts.Count} prompts with {allVersions.Count} versions!");
+        }
+    }
+
+    [RelayCommand]
+    private async System.Threading.Tasks.Task ImportWithHistory()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Filter = "JSON files (*.json)|*.json"
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            var (importedPrompts, importedVersions) = await _exportService.ImportPromptsWithHistoryFromJsonAsync(dialog.FileName);
+            
+            // Create a mapping from old prompt IDs to new prompt IDs
+            var idMapping = new System.Collections.Generic.Dictionary<int, int>();
+            
+            foreach (var prompt in importedPrompts)
+            {
+                var oldId = prompt.Id;
+                prompt.Id = 0; // Reset ID to create new entries
+                await _databaseService.SavePromptAsync(prompt);
+                idMapping[oldId] = prompt.Id;
+            }
+            
+            // Update version PromptIds to match new prompt IDs and save
+            foreach (var version in importedVersions)
+            {
+                if (idMapping.TryGetValue(version.PromptId, out var newId))
+                {
+                    version.PromptId = newId;
+                }
+            }
+            await _versioningService.SaveVersionsAsync(importedVersions);
+            
+            await LoadData();
+            SnackbarMessageQueue?.Enqueue($"✓ Imported {importedPrompts.Count} prompts with {importedVersions.Count} versions!");
+        }
+    }
+
+    [RelayCommand]
     private void BrowseLibrary()
     {
         var dialog = new LibraryBrowserDialog(_promptLibraryService)
@@ -450,6 +561,37 @@ public partial class MainViewModel : ObservableObject
         {
             EditContent = dialog.ResultPrompt;
             SnackbarMessageQueue?.Enqueue("✓ Prompt loaded from AI Builder");
+        }
+    }
+
+    [RelayCommand]
+    private void OpenWorkflows()
+    {
+        var dialog = new WorkflowDialog(_workflowService, _aiService, _secureStorageService)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        if (dialog.ShowDialog() == true && !string.IsNullOrEmpty(dialog.ResultPrompt))
+        {
+            EditContent = dialog.ResultPrompt;
+            SnackbarMessageQueue?.Enqueue("✓ Workflow result loaded");
+        }
+    }
+
+    [RelayCommand]
+    private async System.Threading.Tasks.Task OpenSettings()
+    {
+        var dialog = new SettingsDialog(_exportService, _databaseService, _versioningService, _workflowService)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        dialog.ShowDialog();
+        
+        if (dialog.DataChanged)
+        {
+            await LoadData();
         }
     }
 

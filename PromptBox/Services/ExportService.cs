@@ -9,10 +9,12 @@ using System.Threading.Tasks;
 namespace PromptBox.Services;
 
 /// <summary>
-/// Service for exporting and importing prompts
+/// Service for exporting and importing prompts, workflows, and version history
 /// </summary>
 public class ExportService : IExportService
 {
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
+
     public async Task ExportPromptAsMarkdownAsync(Prompt prompt, string filePath)
     {
         var markdown = $"# {prompt.Title}\n\n";
@@ -31,8 +33,7 @@ public class ExportService : IExportService
 
     public async Task ExportAllPromptsAsJsonAsync(List<Prompt> prompts, string filePath)
     {
-        var options = new JsonSerializerOptions { WriteIndented = true };
-        var json = JsonSerializer.Serialize(prompts, options);
+        var json = JsonSerializer.Serialize(prompts, JsonOptions);
         await File.WriteAllTextAsync(filePath, json);
     }
 
@@ -42,4 +43,46 @@ public class ExportService : IExportService
         var prompts = JsonSerializer.Deserialize<List<Prompt>>(json);
         return prompts ?? new List<Prompt>();
     }
+
+    public async Task ExportWorkflowsAsJsonAsync(List<Workflow> workflows, string filePath)
+    {
+        var json = JsonSerializer.Serialize(workflows, JsonOptions);
+        await File.WriteAllTextAsync(filePath, json);
+    }
+
+    public async Task<List<Workflow>> ImportWorkflowsFromJsonAsync(string filePath)
+    {
+        var json = await File.ReadAllTextAsync(filePath);
+        var workflows = JsonSerializer.Deserialize<List<Workflow>>(json);
+        return workflows ?? new List<Workflow>();
+    }
+
+    public async Task ExportPromptsWithHistoryAsJsonAsync(List<Prompt> prompts, List<PromptVersion> versions, string filePath)
+    {
+        var exportData = new PromptExportWithHistory
+        {
+            Prompts = prompts,
+            Versions = versions,
+            ExportedAt = DateTime.Now
+        };
+        var json = JsonSerializer.Serialize(exportData, JsonOptions);
+        await File.WriteAllTextAsync(filePath, json);
+    }
+
+    public async Task<(List<Prompt> Prompts, List<PromptVersion> Versions)> ImportPromptsWithHistoryFromJsonAsync(string filePath)
+    {
+        var json = await File.ReadAllTextAsync(filePath);
+        var exportData = JsonSerializer.Deserialize<PromptExportWithHistory>(json);
+        return (exportData?.Prompts ?? new List<Prompt>(), exportData?.Versions ?? new List<PromptVersion>());
+    }
+}
+
+/// <summary>
+/// Container for exporting prompts with their version history
+/// </summary>
+public class PromptExportWithHistory
+{
+    public List<Prompt> Prompts { get; set; } = new();
+    public List<PromptVersion> Versions { get; set; } = new();
+    public DateTime ExportedAt { get; set; }
 }

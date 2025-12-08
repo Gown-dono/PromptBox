@@ -56,19 +56,34 @@
                                 Command="{Binding NewPromptCommand}"
                                 Style="{StaticResource MaterialDesignRaisedButton}"
                                 materialDesign:ButtonAssist.CornerRadius="4"
-                                Margin="0,0,0,8"/>
+                                Height="32"
+                                FontSize="12"
+                                Margin="0,0,0,6"/>
                         
                         <Button Content="Browse Library"
                                 Command="{Binding BrowseLibraryCommand}"
                                 Style="{StaticResource MaterialDesignRaisedButton}"
                                 materialDesign:ButtonAssist.CornerRadius="4"
-                                Margin="0,0,0,8"/>
+                                Height="32"
+                                FontSize="12"
+                                Margin="0,0,0,6"/>
                         
                         <Button Content="AI Prompt Builder"
                                 Command="{Binding OpenPromptBuilderCommand}"
                                 Style="{StaticResource MaterialDesignRaisedButton}"
                                 materialDesign:ButtonAssist.CornerRadius="4"
-                                Margin="0,0,0,20"/>
+                                Height="32"
+                                FontSize="12"
+                                Margin="0,0,0,6"/>
+                        
+                        <Button Content="Workflows"
+                                Command="{Binding OpenWorkflowsCommand}"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                materialDesign:ButtonAssist.CornerRadius="4"
+                                Height="32"
+                                FontSize="12"
+                                Margin="0,0,0,16"
+                                ToolTip="Run multi-step prompt workflows (Code Development, Review, Documentation, etc.)"/>
 
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -130,15 +145,22 @@
 
                         <Separator Margin="0,20"/>
 
-                        <TextBlock Text="EXPORT" Style="{StaticResource SectionHeader}"/>
-                        <Button Content="Export All (JSON)" 
-                                Command="{Binding ExportAllAsJsonCommand}"
+                        <Button Content="Settings"
+                                Command="{Binding OpenSettingsCommand}"
                                 Style="{StaticResource MaterialDesignRaisedButton}"
-                                Margin="0,5"/>
-                        <Button Content="Import (JSON)" 
-                                Command="{Binding ImportFromJsonCommand}"
-                                Style="{StaticResource MaterialDesignRaisedButton}"
-                                Margin="0,5"/>
+                                materialDesign:ButtonAssist.CornerRadius="4"
+                                Height="32"
+                                FontSize="12"
+                                Margin="0,5">
+                            <Button.ContentTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="Cog" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <TextBlock Text="Settings" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </Button.ContentTemplate>
+                        </Button>
                     </StackPanel>
                 </ScrollViewer>
             </Border>

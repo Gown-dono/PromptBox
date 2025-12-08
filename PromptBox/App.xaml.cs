@@ -43,6 +43,7 @@ public partial class App : Application
         services.AddSingleton<ISecureStorageService, SecureStorageService>();
         services.AddSingleton<IAIService, AIService>();
         services.AddSingleton<IPromptSuggestionService, PromptSuggestionService>();
+        services.AddSingleton<IWorkflowService, WorkflowService>();
 
         // ViewModels
         services.AddTransient<MainViewModel>();
