@@ -1,9 +1,13 @@
 using MaterialDesignThemes.Wpf;
+using Microsoft.Win32;
 using PromptBox.Models;
 using PromptBox.Services;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -23,6 +27,7 @@ public partial class PromptBuilderDialog : Window
     private string _currentResponse = string.Empty;
     private List<PromptStarter> _promptStarters = new();
     private bool _isProcessing;
+    private ObservableCollection<ContextItem> _contextItems = new();
     
     private void ShowMessage(string message)
     {
@@ -98,7 +103,14 @@ public partial class PromptBuilderDialog : Window
         MaxTokensSlider.ValueChanged += (s, e) => 
             MaxTokensValue.Text = ((int)MaxTokensSlider.Value).ToString();
         
+        _contextItems.CollectionChanged += (s, e) => UpdateContextBadge();
+        
         Loaded += async (s, e) => await InitializeAsync();
+    }
+    
+    private void UpdateContextBadge()
+    {
+        ContextButtonBadge.Text = _contextItems.Count > 0 ? $"({_contextItems.Count})" : "";
     }
 
     private async Task InitializeAsync()
@@ -183,15 +195,19 @@ public partial class PromptBuilderDialog : Window
             _cancellationTokenSource = new CancellationTokenSource();
             var settings = GetCurrentSettings();
             
+            // Build prompt with context injection
+            var fullPrompt = BuildPromptWithContext();
+            
             try
             {
-                await foreach (var chunk in _aiService.GenerateStreamAsync(PromptInput.Text, settings, _cancellationTokenSource.Token))
+                await foreach (var chunk in _aiService.GenerateStreamAsync(fullPrompt, settings, _cancellationTokenSource.Token))
                 {
                     _currentResponse += chunk;
                     await Dispatcher.InvokeAsync(() => ResponseViewer.Markdown = _currentResponse);
                 }
                 
-                TokenCount.Text = $"Response length: {_currentResponse.Length} chars";
+                var contextInfo = _contextItems.Count > 0 ? $" (with {_contextItems.Count} context items)" : "";
+                TokenCount.Text = $"Response length: {_currentResponse.Length} chars{contextInfo}";
             }
             catch (OperationCanceledException)
             {
@@ -538,6 +554,432 @@ public partial class PromptBuilderDialog : Window
         }
     }
 
+    #region Context Injection
+    
+    private async void OpenContextDialog_Click(object sender, RoutedEventArgs e)
+    {
+        // Create the context items list for the dialog
+        var contextListBox = new ListBox
+        {
+            MaxHeight = 200,
+            MinHeight = 80,
+            Background = Brushes.Transparent,
+            ItemsSource = _contextItems
+        };
+        
+        contextListBox.ItemTemplate = CreateContextItemTemplate();
+        
+        // Note input area
+        var noteInput = new TextBox
+        {
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            Height = 60,
+            FontFamily = new FontFamily("Consolas"),
+            Foreground = (Brush)FindResource("MaterialDesignBody"),
+            Margin = new Thickness(0, 0, 8, 0)
+        };
+        HintAssist.SetHint(noteInput, "Type a note here...");
+        
+        var addNoteFromInputBtn = new Button 
+        { 
+            Content = "Add", 
+            Style = (Style)FindResource("MaterialDesignRaisedButton"),
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Width = 60
+        };
+        
+        addNoteFromInputBtn.Click += (s, args) =>
+        {
+            if (!string.IsNullOrWhiteSpace(noteInput.Text))
+            {
+                var item = new ContextItem
+                {
+                    Type = ContextItemType.Note,
+                    DisplayName = noteInput.Text.Length > 30 ? noteInput.Text.Substring(0, 30) + "..." : noteInput.Text.Split('\n')[0],
+                    FullPath = "User note",
+                    Content = noteInput.Text,
+                    SizeText = $"{noteInput.Text.Length} chars"
+                };
+                _contextItems.Add(item);
+                noteInput.Text = "";
+                contextListBox.Items.Refresh();
+                ShowMessage("✓ Added note");
+            }
+        };
+        
+        var notePanel = new Grid { Margin = new Thickness(0, 0, 0, 12) };
+        notePanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        notePanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(noteInput, 0);
+        Grid.SetColumn(addNoteFromInputBtn, 1);
+        notePanel.Children.Add(noteInput);
+        notePanel.Children.Add(addNoteFromInputBtn);
+        
+        // Action buttons
+        var addFilesBtn = new Button { Content = "Add Files", Style = (Style)FindResource("MaterialDesignRaisedButton"), Margin = new Thickness(0, 0, 4, 4) };
+        var addFolderBtn = new Button { Content = "Add Folder", Style = (Style)FindResource("MaterialDesignRaisedButton"), Margin = new Thickness(0, 0, 4, 4) };
+        var addClipboardBtn = new Button { Content = "From Clipboard", Style = (Style)FindResource("MaterialDesignRaisedButton"), Margin = new Thickness(0, 0, 4, 4) };
+        var clearAllBtn = new Button { Content = "Clear All", Style = (Style)FindResource("MaterialDesignOutlinedButton"), Foreground = new SolidColorBrush(Color.FromRgb(211, 47, 47)), BorderBrush = new SolidColorBrush(Color.FromRgb(211, 47, 47)), Margin = new Thickness(0, 0, 4, 4) };
+        
+        addFilesBtn.Click += (s, args) => { AddFiles_Click(s, args); contextListBox.Items.Refresh(); };
+        addFolderBtn.Click += (s, args) => { AddFolder_Click(s, args); };
+        addClipboardBtn.Click += (s, args) => { AddClipboard_Click(s, args); contextListBox.Items.Refresh(); };
+        clearAllBtn.Click += (s, args) => { ClearContext_Click(s, args); contextListBox.Items.Refresh(); };
+        
+        var buttonsPanel = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) };
+        buttonsPanel.Children.Add(addFilesBtn);
+        buttonsPanel.Children.Add(addFolderBtn);
+        buttonsPanel.Children.Add(addClipboardBtn);
+        buttonsPanel.Children.Add(clearAllBtn);
+        
+        var closeButton = new Button
+        {
+            Content = "Close",
+            Style = (Style)FindResource("MaterialDesignRaisedButton"),
+            Command = DialogHost.CloseDialogCommand,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 12, 0, 0)
+        };
+        
+        var mainPanel = new StackPanel { Margin = new Thickness(16), MinWidth = 500 };
+        mainPanel.Children.Add(new TextBlock
+        {
+            Text = "Context Injection",
+            FontSize = 18,
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 4),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        });
+        mainPanel.Children.Add(new TextBlock
+        {
+            Text = "Add files, folders, clipboard content, or notes to include as context in your prompt.",
+            FontSize = 12,
+            Margin = new Thickness(0, 0, 0, 16),
+            Foreground = (Brush)FindResource("MaterialDesignBodyLight"),
+            TextWrapping = TextWrapping.Wrap
+        });
+        mainPanel.Children.Add(buttonsPanel);
+        mainPanel.Children.Add(new TextBlock
+        {
+            Text = "Add Note:",
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        });
+        mainPanel.Children.Add(notePanel);
+        mainPanel.Children.Add(new TextBlock
+        {
+            Text = "Context Items:",
+            FontWeight = FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        });
+        mainPanel.Children.Add(new Border
+        {
+            BorderBrush = (Brush)FindResource("MaterialDesignDivider"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Child = contextListBox,
+            MinHeight = 80
+        });
+        mainPanel.Children.Add(closeButton);
+        
+        await DialogHost.Show(mainPanel, "PromptBuilderDialog");
+        UpdateContextBadge();
+    }
+    
+    private DataTemplate CreateContextItemTemplate()
+    {
+        var template = new DataTemplate();
+        
+        var factory = new FrameworkElementFactory(typeof(Border));
+        factory.SetValue(Border.BackgroundProperty, FindResource("PrimaryHueLightBrush"));
+        factory.SetValue(Border.CornerRadiusProperty, new CornerRadius(4));
+        factory.SetValue(Border.PaddingProperty, new Thickness(8, 4, 8, 4));
+        factory.SetValue(Border.MarginProperty, new Thickness(0, 2, 0, 2));
+        
+        var gridFactory = new FrameworkElementFactory(typeof(Grid));
+        
+        var col1 = new FrameworkElementFactory(typeof(ColumnDefinition));
+        col1.SetValue(ColumnDefinition.WidthProperty, GridLength.Auto);
+        var col2 = new FrameworkElementFactory(typeof(ColumnDefinition));
+        col2.SetValue(ColumnDefinition.WidthProperty, new GridLength(1, GridUnitType.Star));
+        var col3 = new FrameworkElementFactory(typeof(ColumnDefinition));
+        col3.SetValue(ColumnDefinition.WidthProperty, GridLength.Auto);
+        var col4 = new FrameworkElementFactory(typeof(ColumnDefinition));
+        col4.SetValue(ColumnDefinition.WidthProperty, GridLength.Auto);
+        
+        gridFactory.AppendChild(col1);
+        gridFactory.AppendChild(col2);
+        gridFactory.AppendChild(col3);
+        gridFactory.AppendChild(col4);
+        
+        var iconFactory = new FrameworkElementFactory(typeof(PackIcon));
+        iconFactory.SetBinding(PackIcon.KindProperty, new System.Windows.Data.Binding("Icon"));
+        iconFactory.SetValue(Grid.ColumnProperty, 0);
+        iconFactory.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        iconFactory.SetValue(FrameworkElement.MarginProperty, new Thickness(0, 0, 8, 0));
+        
+        var nameFactory = new FrameworkElementFactory(typeof(TextBlock));
+        nameFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("DisplayName"));
+        nameFactory.SetValue(Grid.ColumnProperty, 1);
+        nameFactory.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+        nameFactory.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        
+        var sizeFactory = new FrameworkElementFactory(typeof(TextBlock));
+        sizeFactory.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("SizeText"));
+        sizeFactory.SetValue(Grid.ColumnProperty, 2);
+        sizeFactory.SetValue(TextBlock.FontSizeProperty, 10.0);
+        sizeFactory.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        sizeFactory.SetValue(FrameworkElement.MarginProperty, new Thickness(8, 0, 8, 0));
+        sizeFactory.SetValue(UIElement.OpacityProperty, 0.7);
+        
+        var removeFactory = new FrameworkElementFactory(typeof(Button));
+        removeFactory.SetValue(Grid.ColumnProperty, 3);
+        removeFactory.SetValue(Button.StyleProperty, FindResource("MaterialDesignIconButton"));
+        removeFactory.SetValue(FrameworkElement.WidthProperty, 24.0);
+        removeFactory.SetValue(FrameworkElement.HeightProperty, 24.0);
+        removeFactory.SetValue(Control.PaddingProperty, new Thickness(0));
+        removeFactory.SetBinding(FrameworkElement.TagProperty, new System.Windows.Data.Binding());
+        removeFactory.AddHandler(Button.ClickEvent, new RoutedEventHandler(RemoveContextItem_Click));
+        
+        var removeIconFactory = new FrameworkElementFactory(typeof(PackIcon));
+        removeIconFactory.SetValue(PackIcon.KindProperty, PackIconKind.Close);
+        removeIconFactory.SetValue(FrameworkElement.WidthProperty, 14.0);
+        removeIconFactory.SetValue(FrameworkElement.HeightProperty, 14.0);
+        removeFactory.AppendChild(removeIconFactory);
+        
+        gridFactory.AppendChild(iconFactory);
+        gridFactory.AppendChild(nameFactory);
+        gridFactory.AppendChild(sizeFactory);
+        gridFactory.AppendChild(removeFactory);
+        
+        factory.AppendChild(gridFactory);
+        template.VisualTree = factory;
+        
+        return template;
+    }
+    
+    private void AddFiles_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Multiselect = true,
+            Filter = "All files (*.*)|*.*|Code files (*.cs;*.js;*.ts;*.py;*.java;*.cpp;*.h)|*.cs;*.js;*.ts;*.py;*.java;*.cpp;*.h|Text files (*.txt;*.md;*.json;*.xml;*.yaml)|*.txt;*.md;*.json;*.xml;*.yaml"
+        };
+        
+        if (dialog.ShowDialog() == true)
+        {
+            foreach (var filePath in dialog.FileNames)
+            {
+                AddFileToContext(filePath);
+            }
+        }
+    }
+    
+    private void AddFileToContext(string filePath)
+    {
+        try
+        {
+            var fileInfo = new FileInfo(filePath);
+            var content = File.ReadAllText(filePath);
+            
+            var item = new ContextItem
+            {
+                Type = ContextItemType.File,
+                DisplayName = fileInfo.Name,
+                FullPath = filePath,
+                Content = content,
+                SizeText = FormatFileSize(fileInfo.Length)
+            };
+            
+            _contextItems.Add(item);
+            ShowMessage($"✓ Added: {fileInfo.Name}");
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"❌ Error reading file: {ex.Message}");
+        }
+    }
+    
+    private void AddFolder_Click(object sender, RoutedEventArgs e)
+    {
+        // Use OpenFileDialog to select any file, then extract its directory
+        var fileDialog = new OpenFileDialog
+        {
+            Title = "Select any file in the folder you want to add",
+            CheckFileExists = true
+        };
+        
+        if (fileDialog.ShowDialog() == true)
+        {
+            var folderPath = Path.GetDirectoryName(fileDialog.FileName);
+            if (!string.IsNullOrEmpty(folderPath) && Directory.Exists(folderPath))
+            {
+                AddFolderToContext(folderPath);
+            }
+            else
+            {
+                ShowMessage("❌ Could not determine folder path");
+            }
+        }
+    }
+    
+    private void AddFolderToContext(string folderPath)
+    {
+        try
+        {
+            var dirInfo = new DirectoryInfo(folderPath);
+            var sb = new StringBuilder();
+            sb.AppendLine($"📁 Folder: {dirInfo.Name}");
+            sb.AppendLine($"Path: {folderPath}");
+            sb.AppendLine();
+            sb.AppendLine("Files:");
+            
+            var files = dirInfo.GetFiles("*", SearchOption.AllDirectories)
+                .Where(f => !f.FullName.Contains("\\bin\\") && 
+                           !f.FullName.Contains("\\obj\\") &&
+                           !f.FullName.Contains("\\.git\\") &&
+                           !f.FullName.Contains("\\node_modules\\"))
+                .Take(500)
+                .ToList();
+            
+            foreach (var file in files)
+            {
+                var relativePath = file.FullName.Replace(folderPath, "").TrimStart('\\');
+                sb.AppendLine($"  - {relativePath} ({FormatFileSize(file.Length)})");
+            }
+            
+            if (files.Count >= 500)
+            {
+                sb.AppendLine($"  ... and more files (limited to 500)");
+            }
+            
+            var item = new ContextItem
+            {
+                Type = ContextItemType.Folder,
+                DisplayName = dirInfo.Name,
+                FullPath = folderPath,
+                Content = sb.ToString(),
+                SizeText = $"{files.Count} files"
+            };
+            
+            _contextItems.Add(item);
+            ShowMessage($"✓ Added folder: {dirInfo.Name} ({files.Count} files)");
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"❌ Error reading folder: {ex.Message}");
+        }
+    }
+    
+    private void AddClipboard_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (Clipboard.ContainsText())
+            {
+                var text = Clipboard.GetText();
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    var item = new ContextItem
+                    {
+                        Type = ContextItemType.Clipboard,
+                        DisplayName = "Clipboard content",
+                        FullPath = "From clipboard",
+                        Content = text,
+                        SizeText = $"{text.Length} chars"
+                    };
+                    
+                    _contextItems.Add(item);
+                    ShowMessage("✓ Added clipboard content");
+                }
+                else
+                {
+                    ShowMessage("⚠️ Clipboard is empty");
+                }
+            }
+            else
+            {
+                ShowMessage("⚠️ No text in clipboard");
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowMessage($"❌ Error reading clipboard: {ex.Message}");
+        }
+    }
+    
+    private void RemoveContextItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button button && button.Tag is ContextItem item)
+        {
+            _contextItems.Remove(item);
+            ShowMessage($"✓ Removed: {item.DisplayName}");
+        }
+    }
+    
+    private void ClearContext_Click(object sender, RoutedEventArgs e)
+    {
+        _contextItems.Clear();
+        ShowMessage("✓ Cleared all context items");
+    }
+    
+    private string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F1} MB";
+    }
+    
+    private string BuildPromptWithContext()
+    {
+        if (_contextItems.Count == 0)
+            return PromptInput.Text;
+        
+        var sb = new StringBuilder();
+        sb.AppendLine(PromptInput.Text);
+        sb.AppendLine();
+        sb.AppendLine("---");
+        sb.AppendLine("## Context");
+        sb.AppendLine();
+        
+        foreach (var item in _contextItems)
+        {
+            switch (item.Type)
+            {
+                case ContextItemType.File:
+                    sb.AppendLine($"### File: {item.DisplayName}");
+                    sb.AppendLine("```");
+                    sb.AppendLine(item.Content);
+                    sb.AppendLine("```");
+                    break;
+                    
+                case ContextItemType.Folder:
+                    sb.AppendLine($"### {item.Content}");
+                    break;
+                    
+                case ContextItemType.Clipboard:
+                    sb.AppendLine("### Clipboard Content:");
+                    sb.AppendLine("```");
+                    sb.AppendLine(item.Content);
+                    sb.AppendLine("```");
+                    break;
+                    
+                case ContextItemType.Note:
+                    sb.AppendLine("### Note:");
+                    sb.AppendLine(item.Content);
+                    break;
+            }
+            sb.AppendLine();
+        }
+        
+        return sb.ToString();
+    }
+    
+    #endregion
+    
     private void StopGeneration_Click(object sender, RoutedEventArgs e)
     {
         try

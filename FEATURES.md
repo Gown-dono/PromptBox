@@ -322,6 +322,41 @@ Currently, the application uses standard Windows shortcuts:
 - Quick-insert buttons for common variables
 - Support for: topic, context, format, tone, audience, length
 
+#### Context Injection
+Click the "Context" button to open the Context Injection dialog. Automatically inject files, folders, clipboard content, and notes into your prompts:
+
+**Add Files**
+- Select one or multiple files to include
+- File content is automatically read and formatted
+- Supports all text-based files (code, config, docs)
+- Shows file size for reference
+
+**Add Folder**
+- Select a folder to list all files
+- Automatically excludes bin, obj, .git, node_modules
+- Shows file structure with relative paths
+- Limited to 500 files for performance
+
+**From Clipboard**
+- One-click to add clipboard text content
+- Perfect for pasting code snippets or error messages
+- Shows character count
+
+**Add Notes**
+- Add custom notes or additional context
+- Multi-line text support
+- Great for explaining requirements or constraints
+
+**How It Works**
+- Click "Context" button to open the context management dialog
+- Add/remove context items in the dialog
+- Badge on button shows count of context items
+- When you click "Test Prompt", all context is automatically appended
+- Context is formatted with clear sections (File, Folder, Clipboard, Note)
+
+**Example Use Case**
+"Analyze this C# project" prompt + Add Folder → The file list is automatically included in the prompt sent to the AI.
+
 #### Real-time AI Testing
 - Test prompts directly with selected AI model
 - Streaming responses for immediate feedback
