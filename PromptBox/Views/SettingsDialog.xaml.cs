@@ -17,6 +17,7 @@ public partial class SettingsDialog : Window
     private readonly IDatabaseService _databaseService;
     private readonly IVersioningService _versioningService;
     private readonly IWorkflowService _workflowService;
+    private readonly IThemeService _themeService;
     
     public bool DataChanged { get; private set; }
 
@@ -24,13 +25,22 @@ public partial class SettingsDialog : Window
         IExportService exportService,
         IDatabaseService databaseService,
         IVersioningService versioningService,
-        IWorkflowService workflowService)
+        IWorkflowService workflowService,
+        IThemeService themeService)
     {
         InitializeComponent();
         _exportService = exportService;
         _databaseService = databaseService;
         _versioningService = versioningService;
         _workflowService = workflowService;
+        _themeService = themeService;
+        
+        DarkModeToggle.IsChecked = _themeService.IsDarkMode;
+    }
+    
+    private void DarkModeToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _themeService.ToggleTheme();
     }
 
     private void ShowStatus(string message)

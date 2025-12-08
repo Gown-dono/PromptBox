@@ -582,12 +582,15 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async System.Threading.Tasks.Task OpenSettings()
     {
-        var dialog = new SettingsDialog(_exportService, _databaseService, _versioningService, _workflowService)
+        var dialog = new SettingsDialog(_exportService, _databaseService, _versioningService, _workflowService, _themeService)
         {
             Owner = Application.Current.MainWindow
         };
 
         dialog.ShowDialog();
+        
+        // Sync theme state after dialog closes
+        IsDarkMode = _themeService.IsDarkMode;
         
         if (dialog.DataChanged)
         {

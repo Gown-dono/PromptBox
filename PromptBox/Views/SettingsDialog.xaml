@@ -18,6 +18,37 @@
         <TabControl Grid.Row="0" 
                     Style="{StaticResource MaterialDesignFilledTabControl}">
             
+            <!-- Appearance Tab -->
+            <TabItem Header="Appearance">
+                <StackPanel Margin="0,16,0,0">
+                    <TextBlock Text="THEME" 
+                               FontSize="14" 
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource MaterialDesignBody}"
+                               Margin="0,0,0,12"/>
+                    
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <materialDesign:PackIcon Kind="ThemeLightDark" 
+                                                 Width="24" Height="24" 
+                                                 VerticalAlignment="Center"
+                                                 Foreground="{DynamicResource MaterialDesignBody}"
+                                                 Margin="0,0,12,0"/>
+                        <TextBlock Text="Dark Mode" 
+                                   VerticalAlignment="Center"
+                                   Foreground="{DynamicResource MaterialDesignBody}"
+                                   Margin="0,0,16,0"/>
+                        <ToggleButton x:Name="DarkModeToggle"
+                                      Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                      Click="DarkModeToggle_Click"/>
+                    </StackPanel>
+                    
+                    <TextBlock Text="Switch between light and dark color themes."
+                               FontSize="12"
+                               Foreground="{DynamicResource MaterialDesignBodyLight}"
+                               Margin="36,0,0,0"/>
+                </StackPanel>
+            </TabItem>
+            
             <!-- Import/Export Tab -->
             <TabItem Header="Import / Export">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,16,0,0">
