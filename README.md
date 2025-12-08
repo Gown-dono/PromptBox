@@ -87,7 +87,7 @@ PromptBox/
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/Gown-dono/PromptBox-AI-Prompt-Manager.git
+git clone https://github.com/Gown-dono/PromptBox.git
 cd PromptBox-AI-Prompt-Manager
 ```
 
