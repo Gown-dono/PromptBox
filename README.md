@@ -38,13 +38,23 @@ A modern, feature-rich WPF desktop application for managing AI prompts. Create, 
 - **Category Organization**: Organize prompts by categories
 - **Prompt Library Browser**: Browse and import prompts from a curated library
 - **Version History (Git-like)**: One-click restore to any previous version with visual diff
-- **AI Prompt Builder**: Create and test prompts with multiple AI models
-- **Prompt Workflows**: Run complete multi-step prompt workflows with a single click. Workflows chain multiple prompts together where each step's output feeds into the next step.
+
+### AI-Powered Features
+- **AI Prompt Builder**: Create and test prompts with multiple AI models (OpenAI, Anthropic, Google, Mistral, Groq)
+- **Prompt Workflows**: Run complete multi-step prompt workflows with a single click
+- **Batch Processing**: Execute multiple prompts against multiple AI models in a single batch
+- **Prompt Testing & A/B Comparison**: Create test suites with evaluation criteria, run tests, and compare variations
+- **Prompt Comparison Tool**: Compare 2-4 prompt variations side-by-side with automatic ranking
+- **AI Smart Suggestions**: Get AI-powered prompt improvements and variations
+- **Context Injection**: Automatically inject files, folders, clipboard content into prompts
+
 ### Import/Export
 - Export individual prompts as Markdown (`.md`) or plain text (`.txt`)
 - Import/Export all prompts as JSON for backup
 - Import/Export Prompts with Version History
 - Import/Export Workflows (user-created)
+- Export batch results to CSV/JSON
+- Export comparison reports to Markdown
 
 ### User Experience
 - **Modern UI**: Built with Material Design for a clean, professional look
@@ -52,6 +62,7 @@ A modern, feature-rich WPF desktop application for managing AI prompts. Create, 
 - **Clipboard Integration**: One-click copy to clipboard
 - **Local First**: All data stored locally using LiteDB
 - **Fast Performance**: Optimized search and filtering
+- **Secure API Key Storage**: Windows DPAPI encryption for API keys
 
 ## Architecture
 
