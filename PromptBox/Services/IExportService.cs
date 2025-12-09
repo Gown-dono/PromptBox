@@ -18,4 +18,16 @@ public interface IExportService
     // Version history export/import
     Task ExportPromptsWithHistoryAsJsonAsync(List<Prompt> prompts, List<PromptVersion> versions, string filePath);
     Task<(List<Prompt> Prompts, List<PromptVersion> Versions)> ImportPromptsWithHistoryFromJsonAsync(string filePath);
+    
+    // Batch results export
+    Task ExportBatchResultsAsCsvAsync(List<BatchResult> results, string filePath);
+    Task ExportBatchResultsAsJsonAsync(List<BatchResult> results, string filePath);
+
+    // Test results export
+    Task ExportTestResultsAsCsvAsync(List<TestResult> results, string filePath);
+    Task ExportTestResultsAsJsonAsync(List<TestResult> results, string filePath);
+    Task ExportComparisonReportAsync(TestComparison comparison, List<ComparisonResult> results, string filePath);
+
+    // Prompt comparison export
+    Task ExportPromptComparisonReportAsync(PromptComparisonSession session, List<ComparisonResult> results, string filePath);
 }

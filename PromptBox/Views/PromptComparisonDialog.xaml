@@ -1,0 +1,384 @@
+<Window x:Class="PromptBox.Views.PromptComparisonDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        Title="Prompt Comparison Tool"
+        Width="1600" Height="950"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource MaterialDesignPaper}"
+        FontFamily="{materialDesign:MaterialDesignFont}">
+
+    <materialDesign:DialogHost Identifier="ComparisonDialog">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Border Grid.Row="0" Background="{DynamicResource MaterialDesignToolBarBackground}" Padding="16,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="Prompt Comparison Tool" FontSize="18" FontWeight="SemiBold"
+                               Foreground="{DynamicResource MaterialDesignBody}" VerticalAlignment="Center"/>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal">
+                        <Button x:Name="HistoryButton" Content="View History"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Click="ViewHistory_Click" Margin="0,0,8,0"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Main Content - Three Column Layout -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="350"/>
+                    <ColumnDefinition Width="350"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Left Column: Variation Management -->
+                <Border Grid.Column="0" BorderBrush="{DynamicResource MaterialDesignDivider}" BorderThickness="0,0,1,0">
+                    <Grid Margin="12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="150"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Variations Header -->
+                        <Grid Grid.Row="0" Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="PROMPT VARIATIONS (2-4)" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource MaterialDesignBodyLight}" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="VariationCountText" Grid.Column="1" Text="0/4"
+                                       Foreground="{DynamicResource MaterialDesignBodyLight}" VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <!-- Variations List -->
+                        <ListBox Grid.Row="1" x:Name="VariationsListBox" Margin="0,0,0,8"
+                                 SelectionChanged="VariationsListBox_SelectionChanged">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="8" Margin="0,2">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14"
+                                                       Foreground="{DynamicResource MaterialDesignBody}"/>
+                                            <TextBlock Text="{Binding Description}" FontSize="11"
+                                                       Foreground="{DynamicResource MaterialDesignBodyLight}"
+                                                       TextWrapping="Wrap" MaxHeight="32" Margin="0,2,0,0"/>
+                                            <TextBlock Text="{Binding ContentPreview}" FontSize="10"
+                                                       Foreground="{DynamicResource MaterialDesignBodyLight}"
+                                                       FontFamily="Consolas" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <!-- Variation Buttons -->
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,12">
+                            <Button x:Name="AddFromPromptButton" Content="From Prompt"
+                                    Style="{StaticResource MaterialDesignRaisedButton}"
+                                    Click="AddFromPrompt_Click" Margin="0,0,4,0" Height="28" FontSize="11"/>
+                            <Button x:Name="AddManualButton" Content="Add Manual"
+                                    Style="{StaticResource MaterialDesignRaisedButton}"
+                                    Click="AddManual_Click" Margin="0,0,4,0" Height="28" FontSize="11"/>
+                            <Button x:Name="EditVariationButton" Content="Edit"
+                                    Style="{StaticResource MaterialDesignRaisedButton}"
+                                    Click="EditVariation_Click" IsEnabled="False" Margin="0,0,4,0" Height="28" FontSize="11"/>
+                            <Button x:Name="RemoveVariationButton" Content="Remove"
+                                    Style="{StaticResource MaterialDesignRaisedButton}"
+                                    Click="RemoveVariation_Click" IsEnabled="False" Height="28" FontSize="11"/>
+                        </StackPanel>
+
+                        <!-- Shared Input -->
+                        <Grid Grid.Row="3">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="SHARED INPUT (Required)" FontWeight="SemiBold" Margin="0,0,0,4"
+                                       Foreground="{DynamicResource MaterialDesignBodyLight}"/>
+                            <TextBox Grid.Row="1" x:Name="SharedInputTextBox"
+                                     AcceptsReturn="True" TextWrapping="Wrap"
+                                     VerticalScrollBarVisibility="Auto"
+                                     materialDesign:HintAssist.Hint="Enter text/code/question to test all variations against..."
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                     Foreground="{DynamicResource MaterialDesignBody}"/>
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <!-- Middle Column: Model Selection & Settings -->
+                <Border Grid.Column="1" BorderBrush="{DynamicResource MaterialDesignDivider}" BorderThickness="0,0,1,0">
+                    <Grid Margin="12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="200"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Models Header -->
+                        <TextBlock Grid.Row="0" Text="SELECT MODELS" FontWeight="SemiBold" Margin="0,0,0,8"
+                                   Foreground="{DynamicResource MaterialDesignBodyLight}"/>
+
+                        <!-- Models List -->
+                        <Border Grid.Row="1" Background="{DynamicResource MaterialDesignCardBackground}"
+                                CornerRadius="4" Padding="8">
+                            <ListBox x:Name="ModelsListBox" SelectionMode="Multiple"
+                                     SelectionChanged="ModelsListBox_SelectionChanged">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                      Margin="0,0,8,0"/>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Model.Name}" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource MaterialDesignBody}"/>
+                                                <TextBlock Text="{Binding Model.Provider}" FontSize="11"
+                                                           Foreground="{DynamicResource MaterialDesignBodyLight}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
+
+                        <!-- Settings Header -->
+                        <TextBlock Grid.Row="2" Text="COMPARISON SETTINGS" FontWeight="SemiBold" Margin="0,16,0,8"
+                                   Foreground="{DynamicResource MaterialDesignBodyLight}"/>
+
+                        <!-- Settings -->
+                        <StackPanel Grid.Row="3">
+                            <TextBox x:Name="ComparisonNameTextBox"
+                                     materialDesign:HintAssist.Hint="Comparison Name"
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                     Foreground="{DynamicResource MaterialDesignBody}"
+                                     Margin="0,0,0,8"/>
+
+                            <TextBox x:Name="ComparisonDescriptionTextBox"
+                                     materialDesign:HintAssist.Hint="Description (optional)"
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                     Foreground="{DynamicResource MaterialDesignBody}"
+                                     AcceptsReturn="True" Height="60" TextWrapping="Wrap"
+                                     Margin="0,0,0,12"/>
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="40"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Temperature:" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource MaterialDesignBody}"/>
+                                <Slider Grid.Column="1" x:Name="TemperatureSlider"
+                                        Minimum="0" Maximum="1" Value="0.7"
+                                        TickFrequency="0.1" IsSnapToTickEnabled="True"
+                                        Margin="8,0" VerticalAlignment="Center"
+                                        ValueChanged="TemperatureSlider_ValueChanged"/>
+                                <TextBlock Grid.Column="2" x:Name="TemperatureValue" Text="0.7"
+                                           VerticalAlignment="Center"
+                                           Foreground="{DynamicResource MaterialDesignBody}"/>
+                            </Grid>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="50"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Max Tokens:" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource MaterialDesignBody}"/>
+                                <Slider Grid.Column="1" x:Name="MaxTokensSlider"
+                                        Minimum="256" Maximum="8192" Value="2048"
+                                        TickFrequency="256" IsSnapToTickEnabled="True"
+                                        Margin="8,0" VerticalAlignment="Center"
+                                        ValueChanged="MaxTokensSlider_ValueChanged"/>
+                                <TextBlock Grid.Column="2" x:Name="MaxTokensValue" Text="2048"
+                                           VerticalAlignment="Center"
+                                           Foreground="{DynamicResource MaterialDesignBody}"/>
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Right Column: Results & Visualization -->
+                <Grid Grid.Column="2" Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Progress Section -->
+                    <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="ProgressStatusText" Text="Ready to compare"
+                                       Foreground="{DynamicResource MaterialDesignBody}" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" x:Name="ProgressPercentText" Text="0%"
+                                       Foreground="{DynamicResource MaterialDesignBodyLight}" VerticalAlignment="Center"/>
+                        </Grid>
+                        <ProgressBar x:Name="ComparisonProgressBar" Height="8" Margin="0,8,0,0" Value="0" Maximum="100"/>
+                    </StackPanel>
+
+                    <!-- Statistics Panel -->
+                    <UniformGrid Grid.Row="1" Rows="1" Margin="0,0,0,12">
+                        <Border Background="{DynamicResource MaterialDesignCardBackground}" CornerRadius="4" Padding="12" Margin="0,0,4,0">
+                            <StackPanel>
+                                <TextBlock Text="Total" FontSize="11" Foreground="{DynamicResource MaterialDesignBodyLight}"/>
+                                <TextBlock x:Name="TotalCountText" Text="0" FontSize="20" FontWeight="Bold"
+                                           Foreground="{DynamicResource MaterialDesignBody}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="{DynamicResource MaterialDesignCardBackground}" CornerRadius="4" Padding="12" Margin="4,0">
+                            <StackPanel>
+                                <TextBlock Text="Completed" FontSize="11" Foreground="{DynamicResource MaterialDesignBodyLight}"/>
+                                <TextBlock x:Name="CompletedCountText" Text="0" FontSize="20" FontWeight="Bold" Foreground="LightGreen"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="{DynamicResource MaterialDesignCardBackground}" CornerRadius="4" Padding="12" Margin="4,0">
+                            <StackPanel>
+                                <TextBlock Text="Failed" FontSize="11" Foreground="{DynamicResource MaterialDesignBodyLight}"/>
+                                <TextBlock x:Name="FailedCountText" Text="0" FontSize="20" FontWeight="Bold" Foreground="#F44336"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="{DynamicResource MaterialDesignCardBackground}" CornerRadius="4" Padding="12" Margin="4,0">
+                            <StackPanel>
+                                <TextBlock Text="Avg Quality" FontSize="11" Foreground="{DynamicResource MaterialDesignBodyLight}"/>
+                                <TextBlock x:Name="AvgQualityText" Text="0" FontSize="20" FontWeight="Bold"
+                                           Foreground="{DynamicResource MaterialDesignBody}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="{DynamicResource MaterialDesignCardBackground}" CornerRadius="4" Padding="12" Margin="4,0">
+                            <StackPanel>
+                                <TextBlock Text="Total Tokens" FontSize="11" Foreground="{DynamicResource MaterialDesignBodyLight}"/>
+                                <TextBlock x:Name="TotalTokensText" Text="0" FontSize="20" FontWeight="Bold"
+                                           Foreground="{DynamicResource MaterialDesignBody}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="{DynamicResource MaterialDesignCardBackground}" CornerRadius="4" Padding="12" Margin="4,0,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Avg Duration" FontSize="11" Foreground="{DynamicResource MaterialDesignBodyLight}"/>
+                                <TextBlock x:Name="AvgDurationText" Text="--" FontSize="20" FontWeight="Bold"
+                                           Foreground="{DynamicResource MaterialDesignBody}"/>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+
+                    <!-- Results TabControl -->
+                    <TabControl Grid.Row="2" Style="{StaticResource MaterialDesignFilledTabControl}">
+                        <!-- Results Tab -->
+                        <TabItem Header="Results">
+                            <DataGrid x:Name="ResultsDataGrid" AutoGenerateColumns="False"
+                                      IsReadOnly="True" CanUserAddRows="False"
+                                      SelectionChanged="ResultsDataGrid_SelectionChanged">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Rank" Binding="{Binding RankingIcon}" Width="50"/>
+                                    <DataGridTextColumn Header="Variation" Binding="{Binding VariationName}" Width="120"/>
+                                    <DataGridTextColumn Header="Model" Binding="{Binding ModelName}" Width="120"/>
+                                    <DataGridTextColumn Header="Resp Quality" Binding="{Binding QualityScoreFormatted}" Width="75"/>
+                                    <DataGridTextColumn Header="Resp Clarity" Binding="{Binding ClarityScoreFormatted}" Width="75"/>
+                                    <DataGridTextColumn Header="Resp Specificity" Binding="{Binding SpecificityScoreFormatted}" Width="95"/>
+                                    <DataGridTextColumn Header="Tokens" Binding="{Binding TokensFormatted}" Width="70"/>
+                                    <DataGridTextColumn Header="Duration" Binding="{Binding DurationFormatted}" Width="70"/>
+                                    <DataGridTextColumn Header="Output Preview" Binding="{Binding OutputPreview}" Width="*"/>
+                                </DataGrid.Columns>
+                                <DataGrid.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="View Full Output" Click="ViewFullOutput_Click"/>
+                                        <MenuItem Header="Copy Output" Click="CopyOutput_Click"/>
+                                    </ContextMenu>
+                                </DataGrid.ContextMenu>
+                            </DataGrid>
+                        </TabItem>
+
+                        <!-- Side-by-Side Tab -->
+                        <TabItem Header="Side-by-Side">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                                <Grid x:Name="SideBySideGrid"/>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- Diff View Tab -->
+                        <TabItem Header="Diff View">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="8">
+                                    <TextBlock Text="Compare:" VerticalAlignment="Center" Margin="0,0,8,0"
+                                               Foreground="{DynamicResource MaterialDesignBody}"/>
+                                    <ComboBox x:Name="DiffVariation1ComboBox" Width="150" Margin="0,0,8,0"
+                                              DisplayMemberPath="Name"
+                                              Foreground="{DynamicResource MaterialDesignBody}"
+                                              SelectionChanged="DiffComboBox_SelectionChanged"/>
+                                    <TextBlock Text="vs" VerticalAlignment="Center" Margin="0,0,8,0"
+                                               Foreground="{DynamicResource MaterialDesignBody}"/>
+                                    <ComboBox x:Name="DiffVariation2ComboBox" Width="150"
+                                              DisplayMemberPath="Name"
+                                              Foreground="{DynamicResource MaterialDesignBody}"
+                                              SelectionChanged="DiffComboBox_SelectionChanged"/>
+                                </StackPanel>
+
+                                <RichTextBox Grid.Row="1" x:Name="DiffRichTextBox"
+                                             IsReadOnly="True" VerticalScrollBarVisibility="Auto"
+                                             Background="{DynamicResource MaterialDesignCardBackground}"
+                                             Foreground="{DynamicResource MaterialDesignBody}"
+                                             FontFamily="Consolas" FontSize="12" Padding="12"/>
+                            </Grid>
+                        </TabItem>
+                    </TabControl>
+                </Grid>
+            </Grid>
+
+            <!-- Footer -->
+            <Border Grid.Row="2" Background="{DynamicResource MaterialDesignToolBarBackground}" Padding="16,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock x:Name="StatusText" Text="Configure variations and models, then start comparison"
+                               Foreground="{DynamicResource MaterialDesignBodyLight}" VerticalAlignment="Center"/>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button x:Name="StartButton" Content="Start Comparison"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Click="StartComparison_Click" Margin="0,0,8,0"/>
+                        <Button x:Name="CancelButton" Content="Cancel"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Click="CancelComparison_Click" IsEnabled="False" Margin="0,0,8,0"/>
+                        <Button x:Name="ExportButton" Content="Export Report"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Click="ExportReport_Click" IsEnabled="False" Margin="0,0,8,0"/>
+                        <Button x:Name="SaveWinnerButton" Content="Save Winner"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                Click="SaveWinner_Click" IsEnabled="False" Margin="0,0,8,0"/>
+                        <Button Content="Close" Style="{StaticResource MaterialDesignFlatButton}"
+                                Click="CloseButton_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </materialDesign:DialogHost>
+</Window>
