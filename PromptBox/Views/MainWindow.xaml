@@ -82,8 +82,35 @@
                                 materialDesign:ButtonAssist.CornerRadius="4"
                                 Height="32"
                                 FontSize="12"
-                                Margin="0,0,0,16"
+                                Margin="0,0,0,8"
                                 ToolTip="Run multi-step prompt workflows (Code Development, Review, Documentation, etc.)"/>
+                        
+                        <Button Content="Batch Processing"
+                                Command="{Binding OpenBatchProcessingCommand}"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                materialDesign:ButtonAssist.CornerRadius="4"
+                                Height="32"
+                                FontSize="12"
+                                Margin="0,0,0,6"
+                                ToolTip="Execute multiple prompts sequentially against selected AI models"/>
+                        
+                        <Button Content="Prompt Testing"
+                                Command="{Binding OpenPromptTestingCommand}"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                materialDesign:ButtonAssist.CornerRadius="4"
+                                Height="32"
+                                FontSize="12"
+                                Margin="0,0,0,6"
+                                ToolTip="Test prompts with evaluation criteria and A/B comparison"/>
+                        
+                        <Button Content="Compare Prompts"
+                                Command="{Binding OpenPromptComparisonCommand}"
+                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                materialDesign:ButtonAssist.CornerRadius="4"
+                                Height="32"
+                                FontSize="12"
+                                Margin="0,0,0,16"
+                                ToolTip="Compare 2-4 prompt variations side-by-side across multiple models"/>
 
                         <Grid>
                             <Grid.ColumnDefinitions>

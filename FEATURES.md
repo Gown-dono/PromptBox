@@ -497,6 +497,155 @@ Users can create, edit, save, and delete their own custom workflows:
 5. Click "Run Workflow"
 6. Watch as each step executes and view results in real-time
 
+### 18. Batch Processing
+
+#### Overview
+Execute multiple prompts against multiple AI models in a single batch operation. Perfect for comparing model responses, bulk processing, or testing prompts across different providers.
+
+#### Features
+- **Multi-Prompt Selection**: Select any number of prompts from your library
+- **Multi-Model Selection**: Choose multiple AI models to test against
+- **Real-time Progress**: Visual progress bar and status updates
+- **Live Statistics**: Track success/failure counts and token usage
+- **Pause/Resume**: Pause batch execution and resume later
+- **Cancel Support**: Stop batch processing at any time
+- **Result Export**: Export results to CSV or JSON format
+
+#### How to Use
+1. Click "Batch Processing" button in the left sidebar
+2. Select prompts from the left panel (use checkboxes, Select All, or search)
+3. Select AI models from the middle panel
+4. Configure settings (temperature, max tokens)
+5. Optionally name your batch job
+6. Click "Start Batch"
+7. Monitor progress in real-time
+8. View results in the data grid
+9. Double-click any result to view full response
+10. Export results when complete
+
+#### Statistics Tracked
+- Total executions
+- Successful completions
+- Failed executions
+- Total tokens used
+
+#### Export Options
+- **CSV**: Spreadsheet-compatible format with truncated responses
+- **JSON**: Full data export with complete responses
+
+### 19. Prompt Testing & A/B Comparison
+
+#### Overview
+Comprehensive testing framework for evaluating prompt quality and comparing prompt variations. Create test suites with evaluation criteria, run tests against multiple AI models, and perform A/B comparisons to find the best performing prompts.
+
+#### Test Suite Features
+- **Create Test Suites**: Define tests for specific prompts with multiple test cases
+- **Test Cases**: Each test case includes:
+  - Name and input text
+  - Expected keywords (must be present in output)
+  - Forbidden content (must not appear in output)
+  - Expected output pattern (regex matching)
+  - Minimum quality score threshold
+- **Evaluation Criteria**: Configure what to check:
+  - Keyword presence validation
+  - Pattern matching (regex)
+  - Quality score threshold
+  - Token usage limits
+  - Response time limits
+
+#### Quality Metrics
+- **Quality Score** (0-100): Overall prompt output quality
+- **Clarity Score**: How clear and unambiguous the output is
+- **Specificity Score**: How specific and detailed the output is
+- **Effectiveness Score**: Based on keyword matching and criteria fulfillment
+- **Pass/Fail Status**: Determined by evaluation criteria
+
+#### A/B Comparison Testing
+- **Create Variations**: Define multiple versions of a prompt
+- **Side-by-Side Comparison**: Test all variations against the same input
+- **Automatic Ranking**: Results ranked by quality score
+- **Winner Analysis**: Identifies best performing variation with reasoning
+- **Export Reports**: Generate Markdown comparison reports
+
+#### How to Use
+1. Click "Prompt Testing" button in the left sidebar
+2. Create a new test by clicking "New" and selecting a prompt
+3. Add test cases with expected outcomes
+4. Configure evaluation criteria (keywords, quality thresholds, etc.)
+5. Select AI models to test against
+6. Click "Run Tests" to execute
+7. View results with pass/fail status and detailed metrics
+8. For A/B testing, add prompt variations and click "Run Comparison"
+9. Export results as CSV, JSON, or Markdown report
+
+#### Statistics Dashboard
+- Total tests executed
+- Pass/fail counts and rate
+- Average quality scores
+- Token usage tracking
+- Duration metrics
+
+#### Export Options
+- **CSV**: Test results with all metrics
+- **JSON**: Full test data export
+- **Markdown Report**: A/B comparison reports with winner analysis
+
+### 20. Prompt Comparison & Benchmarking Tool
+
+#### Overview
+A standalone tool for comparing 2-4 prompt variations side-by-side across multiple AI models. Perfect for quick A/B testing, prompt optimization, and finding the best performing prompt for your use case without the overhead of setting up full test suites.
+
+#### Key Features
+- **Multi-Variation Comparison**: Compare 2-4 prompt variations simultaneously
+- **Multi-Model Testing**: Test against multiple AI models in one session
+- **Shared Input**: All variations tested against the same input for fair comparison
+- **Quality Metrics**: Automatic scoring for quality, clarity, and specificity
+- **Automatic Ranking**: Results ranked by quality score with medal icons (🥇🥈🥉)
+- **Side-by-Side View**: Visual comparison of outputs across variations and models
+- **Diff View**: Line-by-line diff highlighting between any two variations
+- **Winner Selection**: Save the best performing variation as a new prompt
+- **Session History**: View and manage past comparison sessions
+- **Export Reports**: Generate detailed Markdown comparison reports
+
+#### How to Use
+1. Click "Compare Prompts" button in the left sidebar
+2. Add 2-4 prompt variations:
+   - **From Prompt**: Select from your existing prompts
+   - **Add Manual**: Enter custom prompt text
+3. Enter shared input text that all variations will be tested against
+4. Select one or more AI models to test with
+5. Configure settings (name, description, temperature, max tokens)
+6. Click "Start Comparison"
+7. View results in three tabs:
+   - **Results**: DataGrid with rankings, scores, and metrics
+   - **Side-by-Side**: Visual grid comparing outputs
+   - **Diff View**: Line-by-line comparison between variations
+8. Export report or save winner as new prompt
+
+#### Metrics Tracked
+- **Quality Score**: Overall output quality (0-100)
+- **Clarity Score**: How clear and unambiguous the output is
+- **Specificity Score**: How specific and detailed the output is
+- **Token Usage**: Tokens consumed per variation/model
+- **Duration**: Response time for each execution
+- **Success/Failure**: Track which executions succeeded
+
+#### Export Report Contents
+- Comparison metadata (name, date, description)
+- Shared input used for testing
+- All variations tested with their prompts
+- Models tested
+- Results summary table with rankings
+- Winner analysis with scores
+- Detailed outputs for each variation/model combination
+- Recommendations based on metrics
+
+#### Comparison History
+- View all past comparison sessions
+- See session name, date, and winner
+- Delete old sessions
+- Quick reference for previous findings
+
 ## Future Enhancement Ideas
 
 Potential features for future versions:

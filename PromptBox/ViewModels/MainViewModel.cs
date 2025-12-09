@@ -29,6 +29,9 @@ public partial class MainViewModel : ObservableObject
     private readonly IAIService _aiService;
     private readonly IPromptSuggestionService _promptSuggestionService;
     private readonly IWorkflowService _workflowService;
+    private readonly IBatchProcessingService _batchProcessingService;
+    private readonly IPromptTestingService _promptTestingService;
+    private readonly IPromptComparisonService _promptComparisonService;
     
     public SnackbarMessageQueue? SnackbarMessageQueue { get; set; }
 
@@ -81,7 +84,10 @@ public partial class MainViewModel : ObservableObject
         ISecureStorageService secureStorageService,
         IAIService aiService,
         IPromptSuggestionService promptSuggestionService,
-        IWorkflowService workflowService)
+        IWorkflowService workflowService,
+        IBatchProcessingService batchProcessingService,
+        IPromptTestingService promptTestingService,
+        IPromptComparisonService promptComparisonService)
     {
         _databaseService = databaseService;
         _themeService = themeService;
@@ -93,6 +99,9 @@ public partial class MainViewModel : ObservableObject
         _aiService = aiService;
         _promptSuggestionService = promptSuggestionService;
         _workflowService = workflowService;
+        _batchProcessingService = batchProcessingService;
+        _promptTestingService = promptTestingService;
+        _promptComparisonService = promptComparisonService;
         
         IsDarkMode = _themeService.IsDarkMode;
         
@@ -577,6 +586,71 @@ public partial class MainViewModel : ObservableObject
         {
             EditContent = dialog.ResultPrompt;
             SnackbarMessageQueue?.Enqueue("✓ Workflow result loaded");
+        }
+    }
+
+    [RelayCommand]
+    private void OpenBatchProcessing()
+    {
+        var dialog = new BatchProcessingDialog(_batchProcessingService, _databaseService, _aiService, _exportService)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        dialog.ShowDialog();
+        
+        // Show appropriate message based on batch outcome
+        switch (dialog.Outcome)
+        {
+            case BatchOutcome.Completed:
+                SnackbarMessageQueue?.Enqueue($"✓ Batch processing completed ({dialog.ResultCount} results)");
+                break;
+            case BatchOutcome.Cancelled:
+                if (dialog.ResultCount > 0)
+                    SnackbarMessageQueue?.Enqueue($"Batch cancelled ({dialog.ResultCount} results before cancellation)");
+                break;
+            case BatchOutcome.Failed:
+                SnackbarMessageQueue?.Enqueue("❌ Batch processing failed");
+                break;
+            // BatchOutcome.None - user closed without running, no message needed
+        }
+    }
+
+    [RelayCommand]
+    private void OpenPromptTesting()
+    {
+        var dialog = new PromptTestingDialog(_promptTestingService, _databaseService, _aiService, _exportService)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        dialog.ShowDialog();
+
+        var outcome = dialog.Outcome;
+        if (outcome.TestsExecuted > 0)
+        {
+            SnackbarMessageQueue?.Enqueue($"✓ Executed {outcome.TestsExecuted} tests ({outcome.PassedTests} passed, {outcome.FailedTests} failed)");
+        }
+    }
+
+    [RelayCommand]
+    private async System.Threading.Tasks.Task OpenPromptComparison()
+    {
+        var dialog = new PromptComparisonDialog(
+            _promptComparisonService,
+            _databaseService,
+            _aiService,
+            _exportService,
+            _versioningService)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        if (dialog.ShowDialog() == true)
+        {
+            // Refresh prompts if a winner was saved
+            await LoadData();
+            SnackbarMessageQueue?.Enqueue("✓ Winner saved to prompt library");
         }
     }
 
