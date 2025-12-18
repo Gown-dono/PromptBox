@@ -5,6 +5,7 @@
 
 export interface Env {
   DB: D1Database;
+  ADMIN_API_KEY: string;
 }
 
 interface RatingRequest {
@@ -36,9 +37,15 @@ interface TemplateSubmission {
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Key',
   'Content-Type': 'application/json',
 };
+
+// Verify admin API key
+function verifyAdminKey(request: Request, env: Env): boolean {
+  const apiKey = request.headers.get('X-Admin-Key');
+  return apiKey === env.ADMIN_API_KEY;
+}
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -85,8 +92,14 @@ export default {
         return await getApprovedSubmissions(env);
       }
 
-      // GET /api/submissions/pending - Get pending submissions (for moderation)
+      // GET /api/submissions/pending - Get pending submissions (ADMIN ONLY)
       if (path === '/api/submissions/pending' && request.method === 'GET') {
+        if (!verifyAdminKey(request, env)) {
+          return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+            status: 401,
+            headers: corsHeaders,
+          });
+        }
         return await getPendingSubmissions(env);
       }
 
@@ -96,14 +109,26 @@ export default {
         return await submitTemplate(env, body);
       }
 
-      // POST /api/submissions/:id/approve - Approve a submission
+      // POST /api/submissions/:id/approve - Approve a submission (ADMIN ONLY)
       if (path.match(/^\/api\/submissions\/[^/]+\/approve$/) && request.method === 'POST') {
+        if (!verifyAdminKey(request, env)) {
+          return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+            status: 401,
+            headers: corsHeaders,
+          });
+        }
         const id = path.split('/')[3];
         return await approveSubmission(env, id);
       }
 
-      // POST /api/submissions/:id/reject - Reject a submission
+      // POST /api/submissions/:id/reject - Reject a submission (ADMIN ONLY)
       if (path.match(/^\/api\/submissions\/[^/]+\/reject$/) && request.method === 'POST') {
+        if (!verifyAdminKey(request, env)) {
+          return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+            status: 401,
+            headers: corsHeaders,
+          });
+        }
         const id = path.split('/')[3];
         return await rejectSubmission(env, id);
       }

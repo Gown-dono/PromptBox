@@ -28,6 +28,10 @@ public class PromptCommunityService : IPromptCommunityService
     private const string GITHUB_API_BASE_URL = "https://api.github.com";
     private const string COMMUNITY_API_BASE_URL = "https://promptbox-ratings-api.jeff80773.workers.dev";
     
+    // Admin API key loaded from environment variable or local config
+    // Set PROMPTBOX_ADMIN_KEY environment variable on your machine
+    private static readonly string? ADMIN_API_KEY = Environment.GetEnvironmentVariable("PROMPTBOX_ADMIN_KEY");
+    
     private List<PromptTemplate>? _cachedTemplates;
     private DateTime _lastFetchTime = DateTime.MinValue;
 
@@ -264,6 +268,85 @@ public class PromptCommunityService : IPromptCommunityService
         {
             // Don't fail if API is unavailable - local count is already incremented
             System.Diagnostics.Debug.WriteLine($"Failed to record download to API: {ex.Message}");
+        }
+    }
+
+    public async Task<List<PromptTemplate>> GetPendingSubmissionsAsync()
+    {
+        if (string.IsNullOrEmpty(ADMIN_API_KEY))
+        {
+            System.Diagnostics.Debug.WriteLine("Admin API key not configured");
+            return new List<PromptTemplate>();
+        }
+        
+        try
+        {
+            var url = $"{COMMUNITY_API_BASE_URL}/api/submissions/pending";
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Accept.Clear();
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            request.Headers.Add("X-Admin-Key", ADMIN_API_KEY);
+            
+            var response = await _httpClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to fetch pending submissions: {response.StatusCode}");
+                return new List<PromptTemplate>();
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var submissions = JsonSerializer.Deserialize<List<PromptTemplate>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            
+            return submissions ?? new List<PromptTemplate>();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to fetch pending submissions: {ex.Message}");
+            return new List<PromptTemplate>();
+        }
+    }
+
+    public async Task<bool> ApproveSubmissionAsync(string templateId)
+    {
+        if (string.IsNullOrEmpty(ADMIN_API_KEY)) return false;
+        
+        try
+        {
+            var url = $"{COMMUNITY_API_BASE_URL}/api/submissions/{Uri.EscapeDataString(templateId)}/approve";
+            using var request = new HttpRequestMessage(HttpMethod.Post, url);
+            request.Headers.Accept.Clear();
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            request.Headers.Add("X-Admin-Key", ADMIN_API_KEY);
+            
+            var response = await _httpClient.SendAsync(request);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to approve submission: {ex.Message}");
+            return false;
+        }
+    }
+
+    public async Task<bool> RejectSubmissionAsync(string templateId)
+    {
+        if (string.IsNullOrEmpty(ADMIN_API_KEY)) return false;
+        
+        try
+        {
+            var url = $"{COMMUNITY_API_BASE_URL}/api/submissions/{Uri.EscapeDataString(templateId)}/reject";
+            using var request = new HttpRequestMessage(HttpMethod.Post, url);
+            request.Headers.Accept.Clear();
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            request.Headers.Add("X-Admin-Key", ADMIN_API_KEY);
+            
+            var response = await _httpClient.SendAsync(request);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to reject submission: {ex.Message}");
+            return false;
         }
     }
 

@@ -10,6 +10,11 @@
         FontFamily="{materialDesign:MaterialDesignFont}"
         Icon="/Assets/icon.ico">
     
+    <Window.InputBindings>
+        <!-- Secret admin shortcut: Ctrl+Shift+A -->
+        <KeyBinding Key="A" Modifiers="Control+Shift" Command="{Binding OpenAdminPanelCommand}"/>
+    </Window.InputBindings>
+    
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
