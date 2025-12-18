@@ -280,9 +280,10 @@ public partial class WorkflowDialog : Window
             
             var nodeColor = step.StepType switch
             {
-                WorkflowStepType.Conditional => Color.FromRgb(33, 150, 243),
-                WorkflowStepType.Loop => Color.FromRgb(76, 175, 80),
-                _ => Color.FromRgb(103, 58, 183)
+                WorkflowStepType.Conditional => Color.FromRgb(33, 150, 243), // Blue
+                WorkflowStepType.Loop => Color.FromRgb(76, 175, 80), // Green
+                WorkflowStepType.Parallel => Color.FromRgb(255, 152, 0), // Orange
+                _ => Color.FromRgb(103, 58, 183) // Purple (Standard)
             };
             
             var node = CreateVisualNode(step, nodeWidth, nodeHeight, nodeColor);

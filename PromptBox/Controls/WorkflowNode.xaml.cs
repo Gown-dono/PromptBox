@@ -192,7 +192,7 @@ public partial class WorkflowNode : UserControl
             {
                 WorkflowStepType.Conditional => new SolidColorBrush(Color.FromRgb(33, 150, 243)), // Blue
                 WorkflowStepType.Loop => new SolidColorBrush(Color.FromRgb(76, 175, 80)), // Green
-                WorkflowStepType.Parallel => new SolidColorBrush(Color.FromRgb(156, 39, 176)), // Purple
+                WorkflowStepType.Parallel => new SolidColorBrush(Color.FromRgb(255, 152, 0)), // Orange
                 _ => (Brush)FindResource("PrimaryHueMidBrush")
             };
         }

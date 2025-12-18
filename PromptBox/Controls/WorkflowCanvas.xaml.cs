@@ -900,9 +900,10 @@ public partial class WorkflowCanvas : UserControl
                 Height = 80 * scale,
                 Fill = step.StepType switch
                 {
-                    WorkflowStepType.Conditional => new SolidColorBrush(Color.FromRgb(33, 150, 243)),
-                    WorkflowStepType.Loop => new SolidColorBrush(Color.FromRgb(76, 175, 80)),
-                    _ => new SolidColorBrush(Color.FromRgb(103, 58, 183))
+                    WorkflowStepType.Conditional => new SolidColorBrush(Color.FromRgb(33, 150, 243)), // Blue
+                    WorkflowStepType.Loop => new SolidColorBrush(Color.FromRgb(76, 175, 80)), // Green
+                    WorkflowStepType.Parallel => new SolidColorBrush(Color.FromRgb(255, 152, 0)), // Orange
+                    _ => new SolidColorBrush(Color.FromRgb(103, 58, 183)) // Purple (Standard)
                 },
                 RadiusX = 4,
                 RadiusY = 4
@@ -914,15 +915,37 @@ public partial class WorkflowCanvas : UserControl
         }
         
         // Draw connectors on minimap
+        // Get node positions for proper line connections
         foreach (var connector in _connectors)
         {
+            // Find the source and target steps to get their positions
+            var fromStep = Workflow.Steps.FirstOrDefault(s => s.StepId == connector.FromStepId);
+            var toStep = Workflow.Steps.FirstOrDefault(s => s.StepId == connector.ToStepId);
+            
+            if (fromStep == null || toStep == null) continue;
+            
+            // Calculate minimap positions (center-bottom of source, center-top of target)
+            var nodeWidth = 200 * scale;
+            var nodeHeight = 80 * scale;
+            
+            var fromX = (fromStep.Position.X - bounds.X) * scale + 5 + nodeWidth / 2;
+            var fromY = (fromStep.Position.Y - bounds.Y) * scale + 20 + nodeHeight;
+            var toX = (toStep.Position.X - bounds.X) * scale + 5 + nodeWidth / 2;
+            var toY = (toStep.Position.Y - bounds.Y) * scale + 20;
+            
             var line = new Line
             {
-                X1 = (connector.StartPoint.X - bounds.X) * scale + 5 + 100 * scale,
-                Y1 = (connector.StartPoint.Y - bounds.Y) * scale + 20,
-                X2 = (connector.EndPoint.X - bounds.X) * scale + 5 + 100 * scale,
-                Y2 = (connector.EndPoint.Y - bounds.Y) * scale + 20,
-                Stroke = new SolidColorBrush(Color.FromRgb(150, 150, 150)),
+                X1 = fromX,
+                Y1 = fromY,
+                X2 = toX,
+                Y2 = toY,
+                Stroke = connector.ConnectorType switch
+                {
+                    ConnectorType.Conditional => new SolidColorBrush(Color.FromRgb(33, 150, 243)),
+                    ConnectorType.Loop => new SolidColorBrush(Color.FromRgb(76, 175, 80)),
+                    ConnectorType.Error => new SolidColorBrush(Color.FromRgb(244, 67, 54)),
+                    _ => new SolidColorBrush(Color.FromRgb(150, 150, 150))
+                },
                 StrokeThickness = 1
             };
             MinimapCanvas.Children.Add(line);
@@ -988,9 +1011,10 @@ public partial class WorkflowCanvas : UserControl
         // Header
         var headerBrush = step.StepType switch
         {
-            WorkflowStepType.Conditional => new SolidColorBrush(Color.FromRgb(33, 150, 243)),
-            WorkflowStepType.Loop => new SolidColorBrush(Color.FromRgb(76, 175, 80)),
-            _ => new SolidColorBrush(Color.FromRgb(103, 58, 183))
+            WorkflowStepType.Conditional => new SolidColorBrush(Color.FromRgb(33, 150, 243)), // Blue
+            WorkflowStepType.Loop => new SolidColorBrush(Color.FromRgb(76, 175, 80)), // Green
+            WorkflowStepType.Parallel => new SolidColorBrush(Color.FromRgb(255, 152, 0)), // Orange
+            _ => new SolidColorBrush(Color.FromRgb(103, 58, 183)) // Purple (Standard)
         };
         
         var headerGeometry = new PathGeometry();
