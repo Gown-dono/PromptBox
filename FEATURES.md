@@ -736,8 +736,6 @@ A standalone tool for comparing 2-4 prompt variations side-by-side across multip
 Potential features for future versions:
 - Keyboard shortcuts for common actions
 - Favorites/starred prompts
-- Community prompt library (online)
-- Version comparison between any two versions
 - Prompt sharing (export as link)
 - Cloud sync option
 - Prompt statistics and analytics

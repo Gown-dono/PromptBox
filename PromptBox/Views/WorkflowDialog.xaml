@@ -346,10 +346,13 @@
                     <TabControl x:Name="ResultTabs" 
                                 Grid.Row="1" 
                                 Margin="0,8,0,0"
-                                Style="{StaticResource MaterialDesignFilledTabControl}">
+                                Style="{StaticResource MaterialDesignTabControl}">
                         <TabControl.Resources>
                             <Style TargetType="TabPanel">
                                 <Setter Property="HorizontalAlignment" Value="Left"/>
+                            </Style>
+                            <Style TargetType="TabItem" BasedOn="{StaticResource MaterialDesignTabItem}">
+                                <Setter Property="Foreground" Value="{DynamicResource MaterialDesignBody}"/>
                             </Style>
                         </TabControl.Resources>
                         <TabControl.Template>
@@ -359,13 +362,16 @@
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
-                                    <ScrollViewer Grid.Row="0" 
-                                                  HorizontalScrollBarVisibility="Auto" 
-                                                  VerticalScrollBarVisibility="Disabled"
-                                                  Background="{DynamicResource MaterialDesignCardBackground}">
-                                        <TabPanel IsItemsHost="True" 
-                                                  Background="Transparent"/>
-                                    </ScrollViewer>
+                                    <Border Grid.Row="0" 
+                                            BorderBrush="{DynamicResource MaterialDesignDivider}"
+                                            BorderThickness="0,0,0,1">
+                                        <ScrollViewer HorizontalScrollBarVisibility="Auto" 
+                                                      VerticalScrollBarVisibility="Disabled"
+                                                      Background="{DynamicResource MaterialDesignCardBackground}">
+                                            <TabPanel IsItemsHost="True" 
+                                                      Background="Transparent"/>
+                                        </ScrollViewer>
+                                    </Border>
                                     <ContentPresenter Grid.Row="1" 
                                                       ContentSource="SelectedContent"/>
                                 </Grid>

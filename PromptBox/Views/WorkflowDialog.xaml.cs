@@ -33,6 +33,9 @@ public partial class WorkflowDialog : Window
     private readonly Dictionary<string, Border> _visualNodes = new();
     private readonly List<Line> _visualConnectors = new();
     
+    // Cache results per workflow to persist when switching
+    private readonly Dictionary<string, List<WorkflowStepResult>> _workflowResultsCache = new();
+    
     public string? ResultPrompt { get; private set; }
 
     public WorkflowDialog(
@@ -105,9 +108,26 @@ public partial class WorkflowDialog : Window
         {
             UpdateStepIndicators();
             ResultTabs.Items.Clear();
-            _currentResults.Clear();
-            WorkflowProgress.Value = 0;
-            ProgressText.Text = "";
+            
+            // Restore cached results for this workflow if available
+            var workflowKey = _selectedWorkflow.Id.ToString();
+            if (_workflowResultsCache.TryGetValue(workflowKey, out var cachedResults) && cachedResults.Any())
+            {
+                _currentResults = cachedResults;
+                foreach (var result in _currentResults)
+                {
+                    AddResultTab(result);
+                }
+                WorkflowProgress.Value = 100;
+                ProgressText.Text = $"Completed {_currentResults.Count} steps";
+            }
+            else
+            {
+                _currentResults = new List<WorkflowStepResult>();
+                WorkflowProgress.Value = 0;
+                ProgressText.Text = "";
+            }
+            
             StatusText.Text = $"Selected: {_selectedWorkflow.Name} ({_selectedWorkflow.Steps.Count} steps)";
             
             // Enable/disable edit and delete buttons based on whether it's a custom workflow
@@ -596,6 +616,10 @@ public partial class WorkflowDialog : Window
             {
                 StatusText.Text = $"Workflow completed successfully! ({_currentResults.Sum(r => r.Duration.TotalSeconds):F1}s total)";
             }
+            
+            // Cache results for this workflow
+            var workflowKey = _selectedWorkflow.Id.ToString();
+            _workflowResultsCache[workflowKey] = new List<WorkflowStepResult>(_currentResults);
         }
         catch (OperationCanceledException)
         {
@@ -624,9 +648,37 @@ public partial class WorkflowDialog : Window
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
         };
 
+        var content = result.Success ? result.Output : $"Error: {result.Error}";
+        
+        // Create context menu with View Full Screen option
+        var contextMenu = new ContextMenu();
+        var viewFullScreenItem = new MenuItem
+        {
+            Header = "View Full Screen",
+            Icon = new PackIcon { Kind = PackIconKind.Fullscreen }
+        };
+        viewFullScreenItem.Click += (s, e) =>
+        {
+            var dialog = new FullScreenPromptDialog($"{result.StepOrder}. {result.StepName}", content)
+            {
+                Owner = this
+            };
+            dialog.ShowDialog();
+        };
+        
+        var copyItem = new MenuItem
+        {
+            Header = "Copy",
+            Icon = new PackIcon { Kind = PackIconKind.ContentCopy }
+        };
+        copyItem.Click += (s, e) => Clipboard.SetText(content);
+        
+        contextMenu.Items.Add(viewFullScreenItem);
+        contextMenu.Items.Add(copyItem);
+        
         var textBox = new TextBox
         {
-            Text = result.Success ? result.Output : $"Error: {result.Error}",
+            Text = content,
             IsReadOnly = true,
             TextWrapping = TextWrapping.Wrap,
             FontFamily = new FontFamily("Consolas"),
@@ -634,7 +686,8 @@ public partial class WorkflowDialog : Window
             Padding = new Thickness(12),
             Background = Brushes.Transparent,
             BorderThickness = new Thickness(0),
-            Foreground = (Brush)FindResource("MaterialDesignBody")
+            Foreground = (Brush)FindResource("MaterialDesignBody"),
+            ContextMenu = contextMenu
         };
 
         scrollViewer.Content = textBox;
