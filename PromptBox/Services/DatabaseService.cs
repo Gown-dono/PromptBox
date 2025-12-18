@@ -575,6 +575,16 @@ public class DatabaseService : IDatabaseService
         });
     }
 
+    public async Task<bool> DeleteAllCacheAsync()
+    {
+        return await Task.Run(() =>
+        {
+            using var db = new LiteDatabase(_connectionString);
+            var collection = db.GetCollection<CachedCommunityTemplate>("cachedCommunityTemplates");
+            return collection.DeleteAll() > 0;
+        });
+    }
+
     #endregion
 
     #region Template Rating Methods

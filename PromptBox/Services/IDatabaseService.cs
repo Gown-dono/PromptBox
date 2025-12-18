@@ -53,6 +53,7 @@ public interface IDatabaseService
     Task<List<CachedCommunityTemplate>> GetCachedCommunityTemplatesAsync();
     Task<int> SaveCachedCommunityTemplateAsync(CachedCommunityTemplate cached);
     Task<bool> DeleteExpiredCacheAsync();
+    Task<bool> DeleteAllCacheAsync();
     
     // Template rating methods
     Task<List<TemplateRating>> GetTemplateRatingsAsync(string templateId);

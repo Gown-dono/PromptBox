@@ -74,6 +74,7 @@ plan-*.md
 
 # Admin/sensitive files
 ADMIN_MODERATION.md
+moderate.ps1
 
 # Build artifacts
 *.exe

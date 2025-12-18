@@ -45,10 +45,22 @@ public class PromptCommunityService : IPromptCommunityService
     {
         try
         {
+            System.Diagnostics.Debug.WriteLine($"FetchCommunityTemplatesAsync called, forceRefresh={forceRefresh}");
+            
+            // Clear caches if force refresh
+            if (forceRefresh)
+            {
+                _cachedTemplates = null;
+                _lastFetchTime = DateTime.MinValue;
+                await _databaseService.DeleteAllCacheAsync();
+                System.Diagnostics.Debug.WriteLine("Cleared all caches for force refresh");
+            }
+            
             // Check in-memory cache first (but still refresh download counts)
             if (!forceRefresh && _cachedTemplates != null && 
                 DateTime.Now - _lastFetchTime < TimeSpan.FromMinutes(5))
             {
+                System.Diagnostics.Debug.WriteLine($"Using in-memory cache with {_cachedTemplates.Count} templates");
                 // Refresh download counts from API even when using cache
                 await MergeDownloadCountsAsync(_cachedTemplates);
                 return _cachedTemplates;
@@ -62,6 +74,7 @@ public class PromptCommunityService : IPromptCommunityService
                 
                 if (validCached.Any())
                 {
+                    System.Diagnostics.Debug.WriteLine($"Using database cache with {validCached.Count} templates");
                     var templates = validCached
                         .Select(c => DeserializeTemplate(c.JsonData))
                         .Where(t => t != null)
@@ -360,18 +373,57 @@ public class PromptCommunityService : IPromptCommunityService
             }
 
             var json = await response.Content.ReadAsStringAsync();
-            var submissions = JsonSerializer.Deserialize<List<PromptTemplate>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            System.Diagnostics.Debug.WriteLine($"API Response: {json}");
             
-            if (submissions == null) return new List<PromptTemplate>();
-
-            // Ensure community flags are set
-            foreach (var template in submissions)
+            // Parse as JsonDocument to handle date strings properly
+            var templates = new List<PromptTemplate>();
+            using var doc = JsonDocument.Parse(json);
+            
+            foreach (var element in doc.RootElement.EnumerateArray())
             {
-                template.IsCommunity = true;
-                template.IsOfficial = false;
+                var template = new PromptTemplate
+                {
+                    Id = element.GetProperty("id").GetString() ?? string.Empty,
+                    Title = element.GetProperty("title").GetString() ?? string.Empty,
+                    Category = element.GetProperty("category").GetString() ?? string.Empty,
+                    Description = element.GetProperty("description").GetString() ?? string.Empty,
+                    Content = element.GetProperty("content").GetString() ?? string.Empty,
+                    Author = element.GetProperty("author").GetString() ?? string.Empty,
+                    LicenseType = element.TryGetProperty("licenseType", out var lt) ? lt.GetString() ?? "MIT" : "MIT",
+                    DownloadCount = element.TryGetProperty("downloadCount", out var dc) ? dc.GetInt32() : 0,
+                    IsCommunity = true,
+                    IsOfficial = false,
+                    Tags = new List<string>()
+                };
+                
+                // Parse tags array
+                if (element.TryGetProperty("tags", out var tagsElement) && tagsElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var tag in tagsElement.EnumerateArray())
+                    {
+                        var tagStr = tag.GetString();
+                        if (!string.IsNullOrEmpty(tagStr))
+                            template.Tags.Add(tagStr);
+                    }
+                }
+                
+                // Parse dates (they come as strings from the API)
+                if (element.TryGetProperty("submittedDate", out var sd))
+                {
+                    if (DateTime.TryParse(sd.GetString(), out var submittedDate))
+                        template.SubmittedDate = submittedDate;
+                }
+                if (element.TryGetProperty("lastUpdated", out var lu))
+                {
+                    if (DateTime.TryParse(lu.GetString(), out var lastUpdated))
+                        template.LastUpdated = lastUpdated;
+                }
+                
+                templates.Add(template);
             }
             
-            return submissions;
+            System.Diagnostics.Debug.WriteLine($"Parsed {templates.Count} user-submitted templates");
+            return templates;
         }
         catch (Exception ex)
         {
