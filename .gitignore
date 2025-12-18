@@ -54,3 +54,25 @@ ehthumbs.db
 
 # Folder config file
 Desktop.ini
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+.pnpm-debug.log*
+
+# Cloudflare Worker
+cloudflare-worker/node_modules/
+cloudflare-worker/.wrangler/
+cloudflare-worker/dist/
+
+# Planning and temporary files
+plan-*.md
+*.tmp
+
+# Build artifacts
+*.exe
+PromptBox-v*.exe
+PromptBox.exe
