@@ -72,6 +72,9 @@ cloudflare-worker/dist/
 plan-*.md
 *.tmp
 
+# Admin/sensitive files
+ADMIN_MODERATION.md
+
 # Build artifacts
 *.exe
 PromptBox-v*.exe
