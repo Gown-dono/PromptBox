@@ -43,19 +43,4 @@ public interface IPromptCommunityService
     /// Record a download for a community template
     /// </summary>
     Task RecordDownloadAsync(string templateId);
-    
-    /// <summary>
-    /// Get pending submissions for moderation (admin only)
-    /// </summary>
-    Task<List<PromptTemplate>> GetPendingSubmissionsAsync();
-    
-    /// <summary>
-    /// Approve a pending submission (admin only)
-    /// </summary>
-    Task<bool> ApproveSubmissionAsync(string templateId);
-    
-    /// <summary>
-    /// Reject a pending submission (admin only)
-    /// </summary>
-    Task<bool> RejectSubmissionAsync(string templateId);
 }

@@ -574,17 +574,6 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void OpenAdminPanel()
-    {
-        // Secret admin access - only accessible via keyboard shortcut or hidden menu
-        var dialog = new AdminModerationDialog(_promptCommunityService)
-        {
-            Owner = Application.Current.MainWindow
-        };
-        dialog.ShowDialog();
-    }
-
-    [RelayCommand]
     private void ViewHistory()
     {
         if (SelectedPrompt == null || SelectedPrompt.Id == 0)
