@@ -302,6 +302,29 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void ShareToCommunity()
+    {
+        if (string.IsNullOrWhiteSpace(EditTitle) || string.IsNullOrWhiteSpace(EditContent))
+        {
+            SnackbarMessageQueue?.Enqueue("⚠️ Please enter a title and content before sharing");
+            return;
+        }
+
+        var dialog = new TemplateSubmissionDialog(_promptCommunityService)
+        {
+            Owner = Application.Current.MainWindow
+        };
+
+        // Pre-populate with current prompt data
+        dialog.TemplateTitle = EditTitle;
+        dialog.TemplateContent = EditContent;
+        dialog.SelectedCategory = string.IsNullOrWhiteSpace(EditCategory) ? "Coding" : EditCategory;
+        dialog.Tags = EditTags;
+
+        dialog.ShowDialog();
+    }
+
+    [RelayCommand]
     private void CopyToClipboard()
     {
         if (!string.IsNullOrWhiteSpace(EditContent))

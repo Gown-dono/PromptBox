@@ -33,7 +33,7 @@
             <StackPanel>
                 <!-- Template Title -->
                 <TextBox x:Name="TitleBox"
-                         Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}"
+                         Text="{Binding TemplateTitle, UpdateSourceTrigger=PropertyChanged}"
                          materialDesign:HintAssist.Hint="Template Title *"
                          Margin="0,0,0,16"
                          Foreground="{DynamicResource MaterialDesignBody}"/>
@@ -59,7 +59,7 @@
                 
                 <!-- Content -->
                 <TextBox x:Name="ContentBox"
-                         Text="{Binding Content, UpdateSourceTrigger=PropertyChanged}"
+                         Text="{Binding TemplateContent, UpdateSourceTrigger=PropertyChanged}"
                          materialDesign:HintAssist.Hint="Template Content *"
                          TextWrapping="Wrap"
                          AcceptsReturn="True"

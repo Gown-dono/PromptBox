@@ -26,7 +26,7 @@ public class PromptCommunityService : IPromptCommunityService
     private const string TEMPLATES_PATH = "templates";
     private const int CACHE_TTL_HOURS = 24;
     private const string GITHUB_API_BASE_URL = "https://api.github.com";
-    private const string COMMUNITY_API_BASE_URL = "https://promptbox-ratings-api.gown-dono.workers.dev";
+    private const string COMMUNITY_API_BASE_URL = "https://promptbox-ratings-api.jeff80773.workers.dev";
     
     private List<PromptTemplate>? _cachedTemplates;
     private DateTime _lastFetchTime = DateTime.MinValue;
@@ -71,10 +71,24 @@ public class PromptCommunityService : IPromptCommunityService
                 }
             }
 
-            // Fetch from GitHub
+            // Fetch from GitHub (official templates)
             System.Diagnostics.Debug.WriteLine("Fetching community templates from GitHub...");
             var communityTemplates = await FetchFromGitHubAsync();
-            System.Diagnostics.Debug.WriteLine($"Fetched {communityTemplates.Count} community templates");
+            System.Diagnostics.Debug.WriteLine($"Fetched {communityTemplates.Count} templates from GitHub");
+            
+            // Fetch user-submitted templates from API
+            var submittedTemplates = await FetchApprovedSubmissionsAsync();
+            System.Diagnostics.Debug.WriteLine($"Fetched {submittedTemplates.Count} user-submitted templates from API");
+            
+            // Merge templates (avoid duplicates by ID)
+            var existingIds = communityTemplates.Select(t => t.Id).ToHashSet();
+            foreach (var submitted in submittedTemplates)
+            {
+                if (!existingIds.Contains(submitted.Id))
+                {
+                    communityTemplates.Add(submitted);
+                }
+            }
             
             // Cache the templates
             await CacheTemplatesAsync(communityTemplates);
@@ -112,42 +126,64 @@ public class PromptCommunityService : IPromptCommunityService
     }
 
 
-    public Task<(bool Success, string Message)> SubmitTemplateAsync(PromptTemplate template, string submitterInfo)
+    public async Task<(bool Success, string Message)> SubmitTemplateAsync(PromptTemplate template, string submitterInfo)
     {
         try
         {
             // Validate template
             if (string.IsNullOrWhiteSpace(template.Title))
-                return Task.FromResult((false, "Template title is required."));
+                return (false, "Template title is required.");
             if (string.IsNullOrWhiteSpace(template.Content))
-                return Task.FromResult((false, "Template content is required."));
+                return (false, "Template content is required.");
             if (template.Content.Length > 10000)
-                return Task.FromResult((false, "Template content exceeds maximum length (10,000 characters)."));
+                return (false, "Template content exceeds maximum length (10,000 characters).");
+            if (string.IsNullOrWhiteSpace(template.Category))
+                return (false, "Template category is required.");
+            if (string.IsNullOrWhiteSpace(template.Description))
+                return (false, "Template description is required.");
 
-            // Prepare template for submission
-            template.Id = string.IsNullOrEmpty(template.Id) 
-                ? Guid.NewGuid().ToString("N")[..12] 
-                : template.Id;
-            template.SubmittedBy = submitterInfo;
-            template.SubmittedDate = DateTime.UtcNow;
-            template.LastUpdated = DateTime.UtcNow;
-            template.IsCommunity = true;
-            template.IsOfficial = false;
+            // Prepare submission payload
+            var submission = new
+            {
+                title = template.Title.Trim(),
+                category = template.Category.Trim(),
+                description = template.Description.Trim(),
+                content = template.Content.Trim(),
+                tags = template.Tags ?? new List<string>(),
+                author = submitterInfo.Trim(),
+                licenseType = template.LicenseType ?? "MIT"
+            };
 
-            // For now, return instructions for manual submission
-            // In a full implementation, this would create a GitHub PR via API
-            var message = $"Template prepared for submission!\n\n" +
-                         $"To submit your template to the community:\n" +
-                         $"1. Fork the repository: github.com/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}\n" +
-                         $"2. Add your template JSON to: {TEMPLATES_PATH}/{template.Category.ToLowerInvariant()}/{template.Id}.json\n" +
-                         $"3. Create a Pull Request\n\n" +
-                         $"Template ID: {template.Id}";
+            var url = $"{COMMUNITY_API_BASE_URL}/api/submissions";
+            var json = JsonSerializer.Serialize(submission);
+            using var request = new HttpRequestMessage(HttpMethod.Post, url);
+            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+            request.Headers.Accept.Clear();
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-            return Task.FromResult((true, message));
+            var response = await _httpClient.SendAsync(request);
+            var responseJson = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = JsonSerializer.Deserialize<SubmissionResponse>(responseJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                return (true, result?.Message ?? "Template submitted successfully! It will be reviewed before appearing in the community library.");
+            }
+            else
+            {
+                var error = JsonSerializer.Deserialize<ErrorResponse>(responseJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                return (false, error?.Error ?? "Failed to submit template. Please try again later.");
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Network error submitting template: {ex.Message}");
+            return (false, "Network error. Please check your internet connection and try again.");
         }
         catch (Exception ex)
         {
-            return Task.FromResult((false, $"Error preparing submission: {ex.Message}"));
+            System.Diagnostics.Debug.WriteLine($"Error submitting template: {ex.Message}");
+            return (false, $"Error submitting template: {ex.Message}");
         }
     }
     public Task<bool> ReportTemplateAsync(string templateId, string reason)
@@ -300,6 +336,43 @@ public class PromptCommunityService : IPromptCommunityService
         }
 
         return templates;
+    }
+
+    private async Task<List<PromptTemplate>> FetchApprovedSubmissionsAsync()
+    {
+        try
+        {
+            var url = $"{COMMUNITY_API_BASE_URL}/api/submissions";
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Accept.Clear();
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            
+            var response = await _httpClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to fetch submissions: {response.StatusCode}");
+                return new List<PromptTemplate>();
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var submissions = JsonSerializer.Deserialize<List<PromptTemplate>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            
+            if (submissions == null) return new List<PromptTemplate>();
+
+            // Ensure community flags are set
+            foreach (var template in submissions)
+            {
+                template.IsCommunity = true;
+                template.IsOfficial = false;
+            }
+            
+            return submissions;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to fetch approved submissions: {ex.Message}");
+            return new List<PromptTemplate>();
+        }
     }
 
     private async Task MergeDownloadCountsAsync(List<PromptTemplate> templates)
@@ -645,6 +718,18 @@ Please provide:
     {
         public string TemplateId { get; set; } = string.Empty;
         public int DownloadCount { get; set; }
+    }
+
+    private class SubmissionResponse
+    {
+        public bool Success { get; set; }
+        public string Id { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+    }
+
+    private class ErrorResponse
+    {
+        public string Error { get; set; } = string.Empty;
     }
 
     #endregion

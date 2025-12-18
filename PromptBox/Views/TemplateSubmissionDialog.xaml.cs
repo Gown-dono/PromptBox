@@ -15,10 +15,10 @@ namespace PromptBox.Views;
 public partial class TemplateSubmissionDialog : Window, INotifyPropertyChanged
 {
     private readonly IPromptCommunityService _communityService;
-    private string _title = string.Empty;
+    private string _templateTitle = string.Empty;
     private string _selectedCategory = string.Empty;
     private string _description = string.Empty;
-    private string _content = string.Empty;
+    private string _templateContent = string.Empty;
     private string _tags = string.Empty;
     private string _submitterInfo = string.Empty;
     private string _selectedLicense = "MIT";
@@ -38,10 +38,10 @@ public partial class TemplateSubmissionDialog : Window, INotifyPropertyChanged
         "MIT", "CC0", "CC-BY", "CC-BY-SA"
     };
 
-    public new string Title
+    public string TemplateTitle
     {
-        get => _title;
-        set { _title = value; OnPropertyChanged(); OnPropertyChanged(nameof(CanSubmit)); }
+        get => _templateTitle;
+        set { _templateTitle = value; OnPropertyChanged(); OnPropertyChanged(nameof(CanSubmit)); }
     }
 
     public string SelectedCategory
@@ -56,10 +56,10 @@ public partial class TemplateSubmissionDialog : Window, INotifyPropertyChanged
         set { _description = value; OnPropertyChanged(); OnPropertyChanged(nameof(CanSubmit)); }
     }
 
-    public new string Content
+    public string TemplateContent
     {
-        get => _content;
-        set { _content = value; OnPropertyChanged(); OnPropertyChanged(nameof(CanSubmit)); }
+        get => _templateContent;
+        set { _templateContent = value; OnPropertyChanged(); OnPropertyChanged(nameof(CanSubmit)); }
     }
 
     public string Tags
@@ -87,10 +87,10 @@ public partial class TemplateSubmissionDialog : Window, INotifyPropertyChanged
     }
 
     public bool CanSubmit => 
-        !string.IsNullOrWhiteSpace(Title) &&
+        !string.IsNullOrWhiteSpace(TemplateTitle) &&
         !string.IsNullOrWhiteSpace(SelectedCategory) &&
         !string.IsNullOrWhiteSpace(Description) &&
-        !string.IsNullOrWhiteSpace(Content) &&
+        !string.IsNullOrWhiteSpace(TemplateContent) &&
         !string.IsNullOrWhiteSpace(SubmitterInfo) &&
         !string.IsNullOrWhiteSpace(SelectedLicense) &&
         AcceptedTerms;
@@ -108,10 +108,10 @@ public partial class TemplateSubmissionDialog : Window, INotifyPropertyChanged
 
         var template = new PromptTemplate
         {
-            Title = Title.Trim(),
+            Title = TemplateTitle.Trim(),
             Category = SelectedCategory.Trim(),
             Description = Description.Trim(),
-            Content = Content.Trim(),
+            Content = TemplateContent.Trim(),
             Tags = Tags.Split(',')
                 .Select(t => t.Trim())
                 .Where(t => !string.IsNullOrWhiteSpace(t))

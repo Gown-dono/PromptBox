@@ -27,3 +27,21 @@ CREATE TABLE IF NOT EXISTS downloads (
     template_id TEXT PRIMARY KEY,
     download_count INTEGER DEFAULT 0
 );
+
+-- Template submissions
+CREATE TABLE IF NOT EXISTS submissions (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    category TEXT NOT NULL,
+    description TEXT NOT NULL,
+    content TEXT NOT NULL,
+    tags TEXT DEFAULT '[]',
+    author TEXT NOT NULL,
+    license_type TEXT DEFAULT 'MIT',
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    approved_at DATETIME
+);
+
+-- Index for fast status lookups
+CREATE INDEX IF NOT EXISTS idx_submissions_status ON submissions(status);

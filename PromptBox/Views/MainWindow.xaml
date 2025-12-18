@@ -361,6 +361,15 @@
                             Command="{Binding ExportAsTextCommand}"
                             Style="{StaticResource MaterialDesignRaisedButton}"
                             Margin="0,0,8,0"/>
+                    <Button Command="{Binding ShareToCommunityCommand}"
+                            Style="{StaticResource MaterialDesignRaisedButton}"
+                            ToolTip="Share this prompt with the community"
+                            Margin="0,0,8,0">
+                        <StackPanel Orientation="Horizontal">
+                            <materialDesign:PackIcon Kind="Share" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <TextBlock Text="Share"/>
+                        </StackPanel>
+                    </Button>
                     <Button Content="Delete" 
                             Command="{Binding DeletePromptCommand}"
                             Style="{StaticResource MaterialDesignRaisedButton}"
