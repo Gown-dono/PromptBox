@@ -293,6 +293,45 @@ public class ExportService : IExportService
         }
         return field;
     }
+    
+    public async Task ExportWorkflowAsPngAsync(Workflow workflow, string filePath)
+    {
+        // This is a placeholder - actual PNG rendering is done in WorkflowCanvas
+        // This method creates a simple text-based representation as fallback
+        var content = $"Workflow: {workflow.Name}\n";
+        content += $"Description: {workflow.Description}\n";
+        content += $"Steps: {workflow.Steps.Count}\n\n";
+        
+        foreach (var step in workflow.Steps.OrderBy(s => s.Order))
+        {
+            content += $"[{step.Order + 1}] {step.Name} ({step.StepType})\n";
+            if (!string.IsNullOrEmpty(step.NextStepId))
+            {
+                var nextStep = workflow.GetStepById(step.NextStepId);
+                content += $"    → {nextStep?.Name ?? "Unknown"}\n";
+            }
+            foreach (var branch in step.ConditionalBranches)
+            {
+                var branchStep = workflow.GetStepById(branch.NextStepId);
+                content += $"    → [{branch.Label}] {branchStep?.Name ?? "Unknown"}\n";
+            }
+        }
+        
+        // For now, just save as text - actual PNG export is in WorkflowCanvas
+        await File.WriteAllTextAsync(filePath.Replace(".png", ".txt"), content);
+    }
+    
+    public async Task ExportSingleWorkflowAsJsonAsync(Workflow workflow, string filePath)
+    {
+        var json = JsonSerializer.Serialize(workflow, JsonOptions);
+        await File.WriteAllTextAsync(filePath, json);
+    }
+    
+    public async Task<Workflow?> ImportSingleWorkflowFromJsonAsync(string filePath)
+    {
+        var json = await File.ReadAllTextAsync(filePath);
+        return JsonSerializer.Deserialize<Workflow>(json);
+    }
 }
 
 /// <summary>

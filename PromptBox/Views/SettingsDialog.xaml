@@ -155,6 +155,69 @@
                 </ScrollViewer>
             </TabItem>
             
+            <!-- Community Tab -->
+            <TabItem Header="Community">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,16,0,0">
+                    <StackPanel>
+                        <TextBlock Text="COMMUNITY LIBRARY SETTINGS" 
+                                   FontSize="14" 
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource MaterialDesignBody}"
+                                   Margin="0,0,0,12"/>
+                        
+                        <CheckBox x:Name="EnableCommunityCheckBox"
+                                  Content="Enable community templates" 
+                                  IsChecked="{Binding EnableCommunityTemplates}"
+                                  Foreground="{DynamicResource MaterialDesignBody}"
+                                  Margin="0,0,0,8"/>
+                        
+                        <TextBlock Text="When enabled, community-submitted templates will be available in the library browser."
+                                   FontSize="12"
+                                   Foreground="{DynamicResource MaterialDesignBodyLight}"
+                                   TextWrapping="Wrap"
+                                   Margin="24,0,0,16"/>
+                        
+                        <CheckBox x:Name="AutoRefreshCheckBox"
+                                  Content="Auto-refresh community templates on startup" 
+                                  IsChecked="{Binding AutoRefreshCommunity}"
+                                  Foreground="{DynamicResource MaterialDesignBody}"
+                                  Margin="0,0,0,8"/>
+                        
+                        <TextBlock Text="Automatically check for new community templates when the application starts."
+                                   FontSize="12"
+                                   Foreground="{DynamicResource MaterialDesignBodyLight}"
+                                   TextWrapping="Wrap"
+                                   Margin="24,0,0,16"/>
+                        
+                        <StackPanel Margin="0,0,0,16">
+                            <TextBlock Text="Cache Duration (hours)" 
+                                       Foreground="{DynamicResource MaterialDesignBody}"
+                                       Margin="0,0,0,8"/>
+                            <TextBox x:Name="CacheDurationBox"
+                                     Text="{Binding CacheDurationHours}" 
+                                     Width="100" 
+                                     HorizontalAlignment="Left"
+                                     Foreground="{DynamicResource MaterialDesignBody}"/>
+                            <TextBlock Text="How long to cache community templates before checking for updates."
+                                       FontSize="12"
+                                       Foreground="{DynamicResource MaterialDesignBodyLight}"
+                                       Margin="0,4,0,0"/>
+                        </StackPanel>
+                        
+                        <Button Content="Clear Community Cache" 
+                                Click="ClearCache_Click" 
+                                Style="{StaticResource MaterialDesignOutlinedButton}" 
+                                HorizontalAlignment="Left"
+                                Margin="0,8,0,0"/>
+                        
+                        <TextBlock Text="Clear cached community templates to force a fresh download."
+                                   FontSize="12"
+                                   Foreground="{DynamicResource MaterialDesignBodyLight}"
+                                   Margin="0,4,0,0"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+            
             <!-- About Tab -->
             <TabItem Header="About">
                 <StackPanel Margin="0,16,0,0">

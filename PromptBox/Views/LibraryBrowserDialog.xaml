@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
         Title="Prompt Library" 
-        Height="700" Width="1000"
+        Height="750" Width="1100"
         WindowStartupLocation="CenterOwner"
         Background="{DynamicResource MaterialDesignPaper}"
         FontFamily="{materialDesign:MaterialDesignFont}">
@@ -21,7 +21,7 @@
                        FontSize="24" 
                        FontWeight="Bold"
                        Foreground="{DynamicResource MaterialDesignBody}"/>
-            <TextBlock Text="Browse and import pre-built prompt templates" 
+            <TextBlock Text="Browse and import pre-built prompt templates from local and community sources" 
                        FontSize="14" 
                        Foreground="{DynamicResource MaterialDesignBodyLight}"
                        Margin="0,4,0,0"/>
@@ -31,7 +31,7 @@
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="200"/>
-                <ColumnDefinition Width="300"/>
+                <ColumnDefinition Width="320"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             
@@ -78,19 +78,41 @@
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     
-                    <TextBox Grid.Row="0"
-                             x:Name="SearchBox"
-                             Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged}"
-                             materialDesign:HintAssist.Hint="Search templates..."
-                             materialDesign:TextFieldAssist.HasLeadingIcon="True"
-                             materialDesign:TextFieldAssist.LeadingIcon="Magnify"
-                             Margin="8"
-                             Foreground="{DynamicResource MaterialDesignBody}"/>
+                    <!-- Search and Source Filter -->
+                    <StackPanel Grid.Row="0" Margin="8">
+                        <TextBox x:Name="SearchBox"
+                                 Text="{Binding SearchQuery, UpdateSourceTrigger=PropertyChanged}"
+                                 materialDesign:HintAssist.Hint="Search templates..."
+                                 materialDesign:TextFieldAssist.HasLeadingIcon="True"
+                                 materialDesign:TextFieldAssist.LeadingIcon="Magnify"
+                                 Foreground="{DynamicResource MaterialDesignBody}"/>
+                    </StackPanel>
                     
-                    <ListBox Grid.Row="1"
+                    <!-- Source Filter and Refresh -->
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="8,0,8,8">
+                        <ComboBox ItemsSource="{Binding SourceFilters}" 
+                                  SelectedItem="{Binding SelectedSource}"
+                                  materialDesign:HintAssist.Hint="Source"
+                                  Width="100"
+                                  Foreground="{DynamicResource MaterialDesignBody}"/>
+                        <Button Content="{materialDesign:PackIcon Kind=Refresh}" 
+                                Click="RefreshCommunity_Click" 
+                                Style="{StaticResource MaterialDesignFlatButton}"
+                                ToolTip="Refresh community templates"
+                                Margin="4,0,0,0"
+                                Padding="8"/>
+                        <ProgressBar IsIndeterminate="True" 
+                                     Width="20" Height="20"
+                                     Style="{StaticResource MaterialDesignCircularProgressBar}"
+                                     Visibility="{Binding IsLoadingCommunity, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                     Margin="8,0,0,0"/>
+                    </StackPanel>
+                    
+                    <ListBox Grid.Row="2"
                              x:Name="TemplateList"
                              ItemsSource="{Binding FilteredTemplates}"
                              SelectedItem="{Binding SelectedTemplate}"
@@ -106,6 +128,21 @@
                                                FontSize="11"
                                                TextTrimming="CharacterEllipsis"
                                                Foreground="{DynamicResource MaterialDesignBodyLight}"/>
+                                    
+                                    <!-- Badges -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                        <!-- Community Badge -->
+                                        <Border Background="#E3F2FD" CornerRadius="3" Padding="4,1"
+                                                Visibility="{Binding IsCommunity, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <TextBlock Text="Community" FontSize="9" Foreground="#1565C0"/>
+                                        </Border>
+                                        
+                                        <!-- Official Badge -->
+                                        <Border Background="#E8F5E9" CornerRadius="3" Padding="4,1" Margin="4,0,0,0"
+                                                Visibility="{Binding IsOfficial, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <TextBlock Text="Official" FontSize="9" Foreground="#2E7D32"/>
+                                        </Border>
+                                    </StackPanel>
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -153,6 +190,18 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                        
+                        <!-- Author and Downloads Info -->
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="Author: " FontWeight="SemiBold" FontSize="12"
+                                       Foreground="{DynamicResource MaterialDesignBodyLight}"/>
+                            <TextBlock Text="{Binding SelectedTemplate.Author}" FontSize="12"
+                                       Foreground="{DynamicResource MaterialDesignBody}"/>
+                            <TextBlock Text=" | Downloads: " FontWeight="SemiBold" FontSize="12" Margin="16,0,0,0"
+                                       Foreground="{DynamicResource MaterialDesignBodyLight}"/>
+                            <TextBlock Text="{Binding SelectedTemplate.DownloadCount}" FontSize="12"
+                                       Foreground="{DynamicResource MaterialDesignBody}"/>
+                        </StackPanel>
                     </StackPanel>
                     
                     <!-- Content Preview -->
@@ -176,6 +225,9 @@
                     Orientation="Horizontal" 
                     HorizontalAlignment="Right"
                     Margin="0,16,0,0">
+            <Button Content="Submit Template" Click="SubmitTemplate_Click"
+                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                    Margin="0,0,8,0"/>
             <Button Content="Cancel" 
                     Style="{StaticResource MaterialDesignFlatButton}"
                     Click="Cancel_Click"

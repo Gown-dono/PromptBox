@@ -42,13 +42,39 @@ public interface IWorkflowService
     Task<List<Workflow>> GetCustomWorkflowsAsync();
     
     /// <summary>
-    /// Executes a workflow with the given input
+    /// Executes a workflow with the given input using graph traversal
     /// </summary>
     IAsyncEnumerable<WorkflowStepResult> ExecuteWorkflowAsync(
         Workflow workflow, 
         string initialInput, 
         AIGenerationSettings settings,
         CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Gets all available workflow templates
+    /// </summary>
+    List<WorkflowTemplate> GetWorkflowTemplates();
+    
+    /// <summary>
+    /// Gets a workflow template by ID
+    /// </summary>
+    WorkflowTemplate? GetWorkflowTemplateById(int id);
+    
+    /// <summary>
+    /// Creates a new workflow from a template
+    /// </summary>
+    Workflow CreateWorkflowFromTemplate(int templateId);
+    
+    /// <summary>
+    /// Validates a workflow for execution.
+    /// Returns IsValid (true if no errors), Errors (blocking issues), and Warnings (advisory messages).
+    /// </summary>
+    (bool IsValid, List<string> Errors, List<string> Warnings) ValidateWorkflow(Workflow workflow);
+    
+    /// <summary>
+    /// Migrates old linear workflows to new graph-based format
+    /// </summary>
+    void MigrateWorkflow(Workflow workflow);
     
     /// <summary>
     /// Event raised when a step starts

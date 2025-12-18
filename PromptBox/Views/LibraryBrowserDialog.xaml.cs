@@ -1,10 +1,12 @@
 using PromptBox.Models;
 using PromptBox.Services;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using System.Windows;
 
 namespace PromptBox.Views;
@@ -15,11 +17,15 @@ namespace PromptBox.Views;
 public partial class LibraryBrowserDialog : Window, INotifyPropertyChanged
 {
     private readonly IPromptLibraryService _libraryService;
+    private readonly IPromptCommunityService? _communityService;
     private ObservableCollection<string> _categories = new();
     private ObservableCollection<PromptTemplate> _filteredTemplates = new();
+    private ObservableCollection<string> _sourceFilters = new() { "All", "Local", "Community" };
     private string _selectedCategory = string.Empty;
+    private string _selectedSource = "All";
     private string _searchQuery = string.Empty;
     private PromptTemplate? _selectedTemplate;
+    private bool _isLoadingCommunity;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -35,6 +41,12 @@ public partial class LibraryBrowserDialog : Window, INotifyPropertyChanged
         set { _filteredTemplates = value; OnPropertyChanged(); }
     }
 
+    public ObservableCollection<string> SourceFilters
+    {
+        get => _sourceFilters;
+        set { _sourceFilters = value; OnPropertyChanged(); }
+    }
+
     public string SelectedCategory
     {
         get => _selectedCategory;
@@ -42,7 +54,18 @@ public partial class LibraryBrowserDialog : Window, INotifyPropertyChanged
         {
             _selectedCategory = value;
             OnPropertyChanged();
-            ApplyFilters();
+            _ = ApplyFiltersAsync();
+        }
+    }
+
+    public string SelectedSource
+    {
+        get => _selectedSource;
+        set
+        {
+            _selectedSource = value;
+            OnPropertyChanged();
+            _ = ApplyFiltersAsync();
         }
     }
 
@@ -53,7 +76,7 @@ public partial class LibraryBrowserDialog : Window, INotifyPropertyChanged
         {
             _searchQuery = value;
             OnPropertyChanged();
-            ApplyFilters();
+            _ = ApplyFiltersAsync();
         }
     }
 
@@ -70,41 +93,90 @@ public partial class LibraryBrowserDialog : Window, INotifyPropertyChanged
 
     public bool HasSelection => SelectedTemplate != null;
 
+    public bool IsLoadingCommunity
+    {
+        get => _isLoadingCommunity;
+        set { _isLoadingCommunity = value; OnPropertyChanged(); }
+    }
+
     public Prompt? ImportedPrompt { get; private set; }
 
-    public LibraryBrowserDialog(IPromptLibraryService libraryService)
+    /// <summary>
+    /// Creates a new LibraryBrowserDialog instance.
+    /// </summary>
+    /// <param name="libraryService">The prompt library service for accessing templates.</param>
+    /// <param name="communityService">
+    /// Optional community service for accessing community templates.
+    /// Pass null to disable community features and show only local built-in templates.
+    /// </param>
+    public LibraryBrowserDialog(IPromptLibraryService libraryService, IPromptCommunityService? communityService = null)
     {
         _libraryService = libraryService;
+        _communityService = communityService;
         InitializeComponent();
         DataContext = this;
-        LoadData();
+        _ = LoadDataAsync();
     }
 
-    private void LoadData()
+    private async Task LoadDataAsync()
     {
-        var categories = _libraryService.GetCategories();
-        // Add "All" option at the beginning
-        var allCategories = new List<string> { "All Categories" };
-        allCategories.AddRange(categories);
-        Categories = new ObservableCollection<string>(allCategories);
-        ApplyFilters();
+        IsLoadingCommunity = true;
+        try
+        {
+            var categories = _libraryService.GetCategories();
+            var allCategories = new List<string> { "All Categories" };
+            allCategories.AddRange(categories);
+            
+            // Add community categories if available
+            if (_communityService != null)
+            {
+                var communityTemplates = await _communityService.FetchCommunityTemplatesAsync();
+                var communityCategories = communityTemplates
+                    .Select(t => t.Category)
+                    .Where(c => !string.IsNullOrWhiteSpace(c) && !allCategories.Contains(c))
+                    .Distinct();
+                allCategories.AddRange(communityCategories);
+            }
+            
+            Categories = new ObservableCollection<string>(allCategories.OrderBy(c => c == "All Categories" ? "" : c));
+            await ApplyFiltersAsync();
+        }
+        finally
+        {
+            IsLoadingCommunity = false;
+        }
     }
 
-    private void ApplyFilters()
+
+    private async Task ApplyFiltersAsync()
     {
         var effectiveCategory = SelectedCategory == "All Categories" ? string.Empty : SelectedCategory;
         
-        var templates = string.IsNullOrWhiteSpace(effectiveCategory)
-            ? _libraryService.GetAllTemplates()
-            : _libraryService.GetTemplatesByCategory(effectiveCategory);
-
-        if (!string.IsNullOrWhiteSpace(SearchQuery))
+        List<PromptTemplate> templates;
+        
+        // Get templates based on source filter
+        if (_communityService != null)
         {
-            templates = _libraryService.SearchTemplates(SearchQuery)
-                .Where(t => string.IsNullOrWhiteSpace(effectiveCategory) || 
-                           t.Category == effectiveCategory)
-                .ToList();
+            templates = await _libraryService.SearchTemplatesAsync(SearchQuery, SelectedSource);
         }
+        else
+        {
+            templates = string.IsNullOrWhiteSpace(SearchQuery)
+                ? _libraryService.GetAllTemplates()
+                : _libraryService.SearchTemplates(SearchQuery);
+        }
+
+        // Apply category filter
+        if (!string.IsNullOrWhiteSpace(effectiveCategory))
+        {
+            templates = templates.Where(t => t.Category.Equals(effectiveCategory, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        // Sort by downloads, then title
+        templates = templates
+            .OrderByDescending(t => t.DownloadCount)
+            .ThenBy(t => t.Title)
+            .ToList();
 
         FilteredTemplates = new ObservableCollection<PromptTemplate>(templates);
         
@@ -118,9 +190,57 @@ public partial class LibraryBrowserDialog : Window, INotifyPropertyChanged
         }
     }
 
-    private void Import_Click(object sender, RoutedEventArgs e)
+    private async void RefreshCommunity_Click(object sender, RoutedEventArgs e)
+    {
+        if (_communityService == null) return;
+        
+        IsLoadingCommunity = true;
+        try
+        {
+            await _libraryService.RefreshCommunityTemplatesAsync();
+            await ApplyFiltersAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Error refreshing community templates: {ex.Message}", 
+                "Refresh Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+        finally
+        {
+            IsLoadingCommunity = false;
+        }
+    }
+
+    private void SubmitTemplate_Click(object sender, RoutedEventArgs e)
+    {
+        if (_communityService == null)
+        {
+            MessageBox.Show("Community service is not available.", "Submit Template", 
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        var dialog = new TemplateSubmissionDialog(_communityService);
+        dialog.Owner = this;
+        dialog.ShowDialog();
+    }
+
+    private async void Import_Click(object sender, RoutedEventArgs e)
     {
         if (SelectedTemplate == null) return;
+
+        // Record the download based on template source (this also increments the count)
+        if (SelectedTemplate.IsCommunity && _communityService != null)
+        {
+            await _communityService.RecordDownloadAsync(SelectedTemplate.Id);
+        }
+        else
+        {
+            await _libraryService.RecordLocalDownloadAsync(SelectedTemplate.Id);
+        }
+        
+        // Refresh the filtered list to reflect updated download count ordering
+        await ApplyFiltersAsync();
 
         ImportedPrompt = new Prompt
         {

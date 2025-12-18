@@ -24,5 +24,41 @@ namespace PromptBox.Properties {
                 this["IsDarkMode"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool EnableCommunityTemplates {
+            get {
+                return ((bool)(this["EnableCommunityTemplates"]));
+            }
+            set {
+                this["EnableCommunityTemplates"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool AutoRefreshCommunity {
+            get {
+                return ((bool)(this["AutoRefreshCommunity"]));
+            }
+            set {
+                this["AutoRefreshCommunity"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("24")]
+        public int CacheDurationHours {
+            get {
+                return ((int)(this["CacheDurationHours"]));
+            }
+            set {
+                this["CacheDurationHours"] = value;
+            }
+        }
     }
 }

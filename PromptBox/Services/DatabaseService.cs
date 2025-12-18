@@ -469,4 +469,173 @@ public class DatabaseService : IDatabaseService
     }
 
     #endregion
+
+    #region Context Template Methods
+
+    public async Task<List<ContextTemplate>> GetAllContextTemplatesAsync()
+    {
+        return await Task.Run(() =>
+        {
+            using var db = new LiteDatabase(_connectionString);
+            var collection = db.GetCollection<ContextTemplate>("contextTemplates");
+            return collection.FindAll().ToList();
+        });
+    }
+
+    public async Task<ContextTemplate?> GetContextTemplateByIdAsync(int id)
+    {
+        return await Task.Run(() =>
+        {
+            using var db = new LiteDatabase(_connectionString);
+            var collection = db.GetCollection<ContextTemplate>("contextTemplates");
+            return collection.FindById(id);
+        });
+    }
+
+    public async Task<int> SaveContextTemplateAsync(ContextTemplate template)
+    {
+        return await Task.Run(() =>
+        {
+            using var db = new LiteDatabase(_connectionString);
+            var collection = db.GetCollection<ContextTemplate>("contextTemplates");
+
+            if (template.Id == 0)
+            {
+                template.CreatedDate = DateTime.UtcNow;
+                template.UpdatedDate = DateTime.UtcNow;
+                var result = collection.Insert(template);
+                return result.AsInt32;
+            }
+            else
+            {
+                template.UpdatedDate = DateTime.UtcNow;
+                collection.Update(template);
+                return template.Id;
+            }
+        });
+    }
+
+    public async Task<bool> DeleteContextTemplateAsync(int id)
+    {
+        return await Task.Run(() =>
+        {
+            using var db = new LiteDatabase(_connectionString);
+            var collection = db.GetCollection<ContextTemplate>("contextTemplates");
+            return collection.Delete(id);
+        });
+    }
+
+    #endregion
+
+    #region Community Template Cache Methods
+
+    public async Task<List<CachedCommunityTemplate>> GetCachedCommunityTemplatesAsync()
+    {
+        return await Task.Run(() =>
+        {
+            using var db = new LiteDatabase(_connectionString);
+            var collection = db.GetCollection<CachedCommunityTemplate>("cachedCommunityTemplates");
+            collection.EnsureIndex(c => c.TemplateId);
+            return collection.FindAll().ToList();
+        });
+    }
+
+    public async Task<int> SaveCachedCommunityTemplateAsync(CachedCommunityTemplate cached)
+    {
+        return await Task.Run(() =>
+        {
+            using var db = new LiteDatabase(_connectionString);
+            var collection = db.GetCollection<CachedCommunityTemplate>("cachedCommunityTemplates");
+            collection.EnsureIndex(c => c.TemplateId);
+
+            // Check if already exists
+            var existing = collection.FindOne(c => c.TemplateId == cached.TemplateId);
+            if (existing != null)
+            {
+                cached.TemplateId = existing.TemplateId;
+                collection.Update(cached);
+                return 1;
+            }
+            else
+            {
+                collection.Insert(cached);
+                return 1;
+            }
+        });
+    }
+
+    public async Task<bool> DeleteExpiredCacheAsync()
+    {
+        return await Task.Run(() =>
+        {
+            using var db = new LiteDatabase(_connectionString);
+            var collection = db.GetCollection<CachedCommunityTemplate>("cachedCommunityTemplates");
+            var now = DateTime.Now;
+            return collection.DeleteMany(c => c.ExpiresAt < now) > 0;
+        });
+    }
+
+    #endregion
+
+    #region Template Rating Methods
+
+    public async Task<List<TemplateRating>> GetTemplateRatingsAsync(string templateId)
+    {
+        return await Task.Run(() =>
+        {
+            using var db = new LiteDatabase(_connectionString);
+            var collection = db.GetCollection<TemplateRating>("templateRatings");
+            collection.EnsureIndex(r => r.TemplateId);
+            return collection.Find(r => r.TemplateId == templateId)
+                .OrderByDescending(r => r.CreatedDate)
+                .ToList();
+        });
+    }
+
+    public async Task<TemplateRating?> GetUserRatingForTemplateAsync(string templateId, string userIdentifier)
+    {
+        return await Task.Run(() =>
+        {
+            using var db = new LiteDatabase(_connectionString);
+            var collection = db.GetCollection<TemplateRating>("templateRatings");
+            collection.EnsureIndex(r => r.TemplateId);
+            collection.EnsureIndex(r => r.UserIdentifier);
+            return collection.FindOne(r => r.TemplateId == templateId && r.UserIdentifier == userIdentifier);
+        });
+    }
+
+    public async Task<int> SaveTemplateRatingAsync(TemplateRating rating)
+    {
+        return await Task.Run(() =>
+        {
+            using var db = new LiteDatabase(_connectionString);
+            var collection = db.GetCollection<TemplateRating>("templateRatings");
+            collection.EnsureIndex(r => r.TemplateId);
+            collection.EnsureIndex(r => r.UserIdentifier);
+
+            if (rating.Id == 0)
+            {
+                rating.CreatedDate = DateTime.Now;
+                var result = collection.Insert(rating);
+                return result.AsInt32;
+            }
+            else
+            {
+                collection.Update(rating);
+                return rating.Id;
+            }
+        });
+    }
+
+    public async Task<bool> DeleteTemplateRatingAsync(int id)
+    {
+        return await Task.Run(() =>
+        {
+            using var db = new LiteDatabase(_connectionString);
+            var collection = db.GetCollection<TemplateRating>("templateRatings");
+            return collection.Delete(id);
+        });
+    }
+
+    #endregion
 }

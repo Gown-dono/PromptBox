@@ -42,4 +42,21 @@ public interface IDatabaseService
     Task<PromptComparisonSession?> GetPromptComparisonSessionByIdAsync(int id);
     Task<List<PromptComparisonSession>> GetAllPromptComparisonSessionsAsync();
     Task<bool> DeletePromptComparisonSessionAsync(int id);
+
+    // Context template methods
+    Task<List<ContextTemplate>> GetAllContextTemplatesAsync();
+    Task<ContextTemplate?> GetContextTemplateByIdAsync(int id);
+    Task<int> SaveContextTemplateAsync(ContextTemplate template);
+    Task<bool> DeleteContextTemplateAsync(int id);
+
+    // Community template cache methods
+    Task<List<CachedCommunityTemplate>> GetCachedCommunityTemplatesAsync();
+    Task<int> SaveCachedCommunityTemplateAsync(CachedCommunityTemplate cached);
+    Task<bool> DeleteExpiredCacheAsync();
+    
+    // Template rating methods
+    Task<List<TemplateRating>> GetTemplateRatingsAsync(string templateId);
+    Task<TemplateRating?> GetUserRatingForTemplateAsync(string templateId, string userIdentifier);
+    Task<int> SaveTemplateRatingAsync(TemplateRating rating);
+    Task<bool> DeleteTemplateRatingAsync(int id);
 }

@@ -3,15 +3,17 @@ using PromptBox.Models;
 using PromptBox.Services;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Navigation;
 
 namespace PromptBox.Views;
 
-public partial class SettingsDialog : Window
+public partial class SettingsDialog : Window, INotifyPropertyChanged
 {
     private readonly IExportService _exportService;
     private readonly IDatabaseService _databaseService;
@@ -19,7 +21,31 @@ public partial class SettingsDialog : Window
     private readonly IWorkflowService _workflowService;
     private readonly IThemeService _themeService;
     
+    private bool _enableCommunityTemplates = true;
+    private bool _autoRefreshCommunity = false;
+    private int _cacheDurationHours = 24;
+    
     public bool DataChanged { get; private set; }
+    
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public bool EnableCommunityTemplates
+    {
+        get => _enableCommunityTemplates;
+        set { _enableCommunityTemplates = value; OnPropertyChanged(); SaveCommunitySettings(); }
+    }
+
+    public bool AutoRefreshCommunity
+    {
+        get => _autoRefreshCommunity;
+        set { _autoRefreshCommunity = value; OnPropertyChanged(); SaveCommunitySettings(); }
+    }
+
+    public int CacheDurationHours
+    {
+        get => _cacheDurationHours;
+        set { _cacheDurationHours = value; OnPropertyChanged(); SaveCommunitySettings(); }
+    }
 
     public SettingsDialog(
         IExportService exportService,
@@ -35,7 +61,35 @@ public partial class SettingsDialog : Window
         _workflowService = workflowService;
         _themeService = themeService;
         
+        DataContext = this;
         DarkModeToggle.IsChecked = _themeService.IsDarkMode;
+        LoadCommunitySettings();
+    }
+    
+    private void LoadCommunitySettings()
+    {
+        EnableCommunityTemplates = Properties.Settings.Default.EnableCommunityTemplates;
+        AutoRefreshCommunity = Properties.Settings.Default.AutoRefreshCommunity;
+        CacheDurationHours = Properties.Settings.Default.CacheDurationHours;
+    }
+    
+    private void SaveCommunitySettings()
+    {
+        Properties.Settings.Default.EnableCommunityTemplates = EnableCommunityTemplates;
+        Properties.Settings.Default.AutoRefreshCommunity = AutoRefreshCommunity;
+        Properties.Settings.Default.CacheDurationHours = CacheDurationHours;
+        Properties.Settings.Default.Save();
+    }
+    
+    private async void ClearCache_Click(object sender, RoutedEventArgs e)
+    {
+        await _databaseService.DeleteExpiredCacheAsync();
+        ShowStatus("✓ Community cache cleared!");
+    }
+    
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
     
     private void DarkModeToggle_Click(object sender, RoutedEventArgs e)

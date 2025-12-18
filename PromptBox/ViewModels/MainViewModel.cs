@@ -32,6 +32,12 @@ public partial class MainViewModel : ObservableObject
     private readonly IBatchProcessingService _batchProcessingService;
     private readonly IPromptTestingService _promptTestingService;
     private readonly IPromptComparisonService _promptComparisonService;
+    private readonly IGitContextService _gitContextService;
+    private readonly IDatabaseContextService _databaseContextService;
+    private readonly IApiContextService _apiContextService;
+    private readonly IWebScrapingService _webScrapingService;
+    private readonly IContextTemplateService _contextTemplateService;
+    private readonly IPromptCommunityService _promptCommunityService;
     
     public SnackbarMessageQueue? SnackbarMessageQueue { get; set; }
 
@@ -87,7 +93,13 @@ public partial class MainViewModel : ObservableObject
         IWorkflowService workflowService,
         IBatchProcessingService batchProcessingService,
         IPromptTestingService promptTestingService,
-        IPromptComparisonService promptComparisonService)
+        IPromptComparisonService promptComparisonService,
+        IGitContextService gitContextService,
+        IDatabaseContextService databaseContextService,
+        IApiContextService apiContextService,
+        IWebScrapingService webScrapingService,
+        IContextTemplateService contextTemplateService,
+        IPromptCommunityService promptCommunityService)
     {
         _databaseService = databaseService;
         _themeService = themeService;
@@ -102,6 +114,12 @@ public partial class MainViewModel : ObservableObject
         _batchProcessingService = batchProcessingService;
         _promptTestingService = promptTestingService;
         _promptComparisonService = promptComparisonService;
+        _gitContextService = gitContextService;
+        _databaseContextService = databaseContextService;
+        _apiContextService = apiContextService;
+        _webScrapingService = webScrapingService;
+        _contextTemplateService = contextTemplateService;
+        _promptCommunityService = promptCommunityService;
         
         IsDarkMode = _themeService.IsDarkMode;
         
@@ -514,7 +532,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void BrowseLibrary()
     {
-        var dialog = new LibraryBrowserDialog(_promptLibraryService)
+        var dialog = new LibraryBrowserDialog(_promptLibraryService, _promptCommunityService)
         {
             Owner = Application.Current.MainWindow
         };
@@ -561,7 +579,15 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void OpenPromptBuilder()
     {
-        var dialog = new PromptBuilderDialog(_aiService, _secureStorageService, _promptSuggestionService)
+        var dialog = new PromptBuilderDialog(
+            _aiService, 
+            _secureStorageService, 
+            _promptSuggestionService,
+            _gitContextService,
+            _databaseContextService,
+            _apiContextService,
+            _webScrapingService,
+            _contextTemplateService)
         {
             Owner = Application.Current.MainWindow,
             InitialPrompt = EditContent

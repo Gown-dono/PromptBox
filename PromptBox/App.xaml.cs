@@ -38,7 +38,8 @@ public partial class App : Application
         services.AddSingleton<IThemeService, ThemeService>();
         services.AddSingleton<IExportService, ExportService>();
         services.AddSingleton<ISearchService, SearchService>();
-        services.AddSingleton<IPromptLibraryService, PromptLibraryService>();
+        services.AddSingleton<IPromptLibraryService>(sp => 
+            new PromptLibraryService(sp.GetRequiredService<IPromptCommunityService>()));
         services.AddSingleton<IVersioningService, VersioningService>();
         services.AddSingleton<ISecureStorageService, SecureStorageService>();
         services.AddSingleton<IAIService, AIService>();
@@ -48,6 +49,16 @@ public partial class App : Application
         services.AddSingleton<IBatchProcessingService, BatchProcessingService>();
         services.AddSingleton<IPromptTestingService, PromptTestingService>();
         services.AddSingleton<IPromptComparisonService, PromptComparisonService>();
+        
+        // New context services
+        services.AddSingleton<IGitContextService, GitContextService>();
+        services.AddSingleton<IDatabaseContextService, DatabaseContextService>();
+        services.AddSingleton<IApiContextService, ApiContextService>();
+        services.AddSingleton<IWebScrapingService, WebScrapingService>();
+        services.AddSingleton<IContextTemplateService, ContextTemplateService>();
+        
+        // Community service (must be registered before PromptLibraryService)
+        services.AddSingleton<IPromptCommunityService, PromptCommunityService>();
 
         // ViewModels
         services.AddTransient<MainViewModel>();

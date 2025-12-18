@@ -2,6 +2,7 @@ using PromptBox.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace PromptBox.Services;
 
@@ -11,14 +12,40 @@ namespace PromptBox.Services;
 public class PromptLibraryService : IPromptLibraryService
 {
     private readonly List<PromptTemplate> _templates;
+    private readonly IPromptCommunityService? _communityService;
 
     public PromptLibraryService()
     {
         _templates = InitializeLibrary();
     }
 
+    public PromptLibraryService(IPromptCommunityService communityService)
+    {
+        _communityService = communityService;
+        _templates = InitializeLibrary();
+    }
+
+    // Synchronous methods (for backward compatibility - local templates only)
+    
+    /// <summary>
+    /// Gets all local built-in templates only. Does not include community templates.
+    /// </summary>
+    /// <remarks>
+    /// This synchronous method operates on local built-in templates only.
+    /// To include community templates, use <see cref="GetAllTemplatesAsync"/> instead.
+    /// </remarks>
+    /// <returns>A list of local built-in prompt templates.</returns>
     public List<PromptTemplate> GetAllTemplates() => _templates.ToList();
 
+    /// <summary>
+    /// Gets local built-in templates filtered by category. Does not include community templates.
+    /// </summary>
+    /// <remarks>
+    /// This synchronous method operates on local built-in templates only.
+    /// To include community templates, use <see cref="SearchTemplatesAsync"/> with appropriate filters.
+    /// </remarks>
+    /// <param name="category">The category to filter by.</param>
+    /// <returns>A list of local built-in prompt templates in the specified category.</returns>
     public List<PromptTemplate> GetTemplatesByCategory(string category)
     {
         if (string.IsNullOrWhiteSpace(category))
@@ -26,10 +53,36 @@ public class PromptLibraryService : IPromptLibraryService
         return _templates.Where(t => t.Category.Equals(category, StringComparison.OrdinalIgnoreCase)).ToList();
     }
 
+    /// <summary>
+    /// Gets all categories from local built-in templates only. Does not include community template categories.
+    /// </summary>
+    /// <remarks>
+    /// This synchronous method operates on local built-in templates only.
+    /// Community templates may have additional categories not returned by this method.
+    /// </remarks>
+    /// <returns>A list of category names from local built-in templates.</returns>
     public List<string> GetCategories() => _templates.Select(t => t.Category).Distinct().OrderBy(c => c).ToList();
 
+    /// <summary>
+    /// Gets a local built-in template by ID. Does not search community templates.
+    /// </summary>
+    /// <remarks>
+    /// This synchronous method operates on local built-in templates only.
+    /// To find community templates by ID, use <see cref="GetAllTemplatesAsync"/> and filter the results.
+    /// </remarks>
+    /// <param name="id">The template ID to search for.</param>
+    /// <returns>The matching template, or null if not found in local templates.</returns>
     public PromptTemplate? GetTemplateById(string id) => _templates.FirstOrDefault(t => t.Id == id);
 
+    /// <summary>
+    /// Searches local built-in templates only. Does not include community templates in search.
+    /// </summary>
+    /// <remarks>
+    /// This synchronous method operates on local built-in templates only.
+    /// To search including community templates, use <see cref="SearchTemplatesAsync"/> instead.
+    /// </remarks>
+    /// <param name="query">The search query to match against title, description, category, and tags.</param>
+    /// <returns>A list of matching local built-in prompt templates.</returns>
     public List<PromptTemplate> SearchTemplates(string query)
     {
         if (string.IsNullOrWhiteSpace(query))
@@ -43,9 +96,92 @@ public class PromptLibraryService : IPromptLibraryService
         ).ToList();
     }
 
+    // Async methods with community support
+    public async Task<List<PromptTemplate>> GetAllTemplatesAsync(bool includeCommunity = true)
+    {
+        var allTemplates = _templates.ToList();
+        
+        if (includeCommunity && _communityService != null)
+        {
+            try
+            {
+                var communityTemplates = await _communityService.FetchCommunityTemplatesAsync();
+                allTemplates.AddRange(communityTemplates);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error fetching community templates: {ex.Message}");
+            }
+        }
+        
+        return allTemplates
+            .OrderByDescending(t => t.DownloadCount)
+            .ThenBy(t => t.Title)
+            .ToList();
+    }
+
+    public async Task<List<PromptTemplate>> GetCommunityTemplatesAsync()
+    {
+        if (_communityService == null)
+            return new List<PromptTemplate>();
+        
+        return await _communityService.FetchCommunityTemplatesAsync();
+    }
+
+    public async Task<List<PromptTemplate>> SearchTemplatesAsync(string query, string source = "All")
+    {
+        var templates = await GetAllTemplatesAsync(source != "Local");
+        
+        // Filter by source
+        if (source == "Local")
+            templates = templates.Where(t => t.IsOfficial && !t.IsCommunity).ToList();
+        else if (source == "Community")
+            templates = templates.Where(t => t.IsCommunity).ToList();
+        
+        // Apply search query
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            var q = query.ToLowerInvariant();
+            templates = templates.Where(t =>
+                t.Title.ToLowerInvariant().Contains(q) ||
+                t.Description.ToLowerInvariant().Contains(q) ||
+                t.Category.ToLowerInvariant().Contains(q) ||
+                t.Tags.Any(tag => tag.ToLowerInvariant().Contains(q))
+            ).ToList();
+        }
+        
+        return templates;
+    }
+
+    public async Task<bool> RefreshCommunityTemplatesAsync()
+    {
+        if (_communityService == null)
+            return false;
+        
+        try
+        {
+            await _communityService.FetchCommunityTemplatesAsync(forceRefresh: true);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public Task RecordLocalDownloadAsync(string templateId)
+    {
+        var template = _templates.FirstOrDefault(t => t.Id == templateId);
+        if (template != null)
+        {
+            template.DownloadCount++;
+        }
+        return Task.CompletedTask;
+    }
+
     private static List<PromptTemplate> InitializeLibrary()
     {
-        return new List<PromptTemplate>
+        var templates = new List<PromptTemplate>
         {
             // === CODING ===
             new()
@@ -55,6 +191,8 @@ public class PromptLibraryService : IPromptLibraryService
                 Category = "Coding",
                 Tags = new List<string> { "code", "review", "quality" },
                 Description = "Get thorough code reviews with actionable feedback",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Please review the following code and provide feedback on:
 
 1. **Code Quality**: Readability, naming conventions, and structure
@@ -77,6 +215,8 @@ Please provide specific suggestions with code examples where applicable."
                 Category = "Coding",
                 Tags = new List<string> { "debug", "error", "troubleshoot" },
                 Description = "Get help debugging errors and issues",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"I'm encountering an issue and need help debugging.
 
 **Error Message:**
@@ -108,6 +248,8 @@ Please help me identify the root cause and suggest a fix."
                 Category = "Coding",
                 Tags = new List<string> { "explain", "learn", "understand" },
                 Description = "Get clear explanations of complex code",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Please explain the following code in detail:
 
 ```
@@ -128,6 +270,8 @@ Include:
                 Category = "Coding",
                 Tags = new List<string> { "refactor", "improve", "clean" },
                 Description = "Get suggestions for improving code structure",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Please refactor the following code to improve:
 
 - Readability and maintainability
@@ -151,6 +295,8 @@ Please provide the refactored code with explanations for each change."
                 Category = "Coding",
                 Tags = new List<string> { "test", "unit-test", "testing" },
                 Description = "Generate comprehensive unit tests",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Generate unit tests for the following code:
 
 ```
@@ -175,6 +321,8 @@ Please include:
                 Category = "Writing",
                 Tags = new List<string> { "blog", "content", "article" },
                 Description = "Create engaging blog posts on any topic",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Write a blog post about: [TOPIC]
 
 **Target Audience:** [WHO]
@@ -196,6 +344,8 @@ Include relevant subheadings and make it SEO-friendly."
                 Category = "Writing",
                 Tags = new List<string> { "email", "business", "communication" },
                 Description = "Craft professional business emails",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Write a professional email for the following situation:
 
 **Purpose:** [REQUEST/FOLLOW-UP/INTRODUCTION/etc.]
@@ -216,6 +366,8 @@ Keep it concise, clear, and professional."
                 Category = "Writing",
                 Tags = new List<string> { "docs", "technical", "readme" },
                 Description = "Create clear technical documentation",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Create technical documentation for:
 
 **Project/Feature:** [NAME]
@@ -241,6 +393,8 @@ Make it clear, well-organized, and beginner-friendly."
                 Category = "Analysis",
                 Tags = new List<string> { "data", "analysis", "insights" },
                 Description = "Analyze data and extract insights",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Analyze the following data and provide insights:
 
 **Data:**
@@ -267,6 +421,8 @@ Please provide:
                 Category = "Analysis",
                 Tags = new List<string> { "business", "competitor", "market" },
                 Description = "Analyze competitors and market position",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Conduct a competitor analysis for:
 
 **My Product/Service:** [DESCRIPTION]
@@ -290,6 +446,8 @@ Provide actionable recommendations for competitive advantage."
                 Category = "Analysis",
                 Tags = new List<string> { "swot", "strategy", "planning" },
                 Description = "Generate comprehensive SWOT analysis",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Create a SWOT analysis for:
 
 **Subject:** [COMPANY/PROJECT/IDEA]
@@ -313,6 +471,8 @@ Include specific examples and strategic recommendations."
                 Category = "Creative",
                 Tags = new List<string> { "story", "creative", "fiction" },
                 Description = "Generate creative stories and narratives",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Write a [SHORT STORY/CHAPTER/SCENE] with:
 
 **Genre:** [Fantasy/Sci-Fi/Mystery/etc.]
@@ -331,6 +491,8 @@ Include vivid descriptions, dialogue, and emotional depth."
                 Category = "Creative",
                 Tags = new List<string> { "ideas", "brainstorm", "creative" },
                 Description = "Generate creative ideas and solutions",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Help me brainstorm ideas for:
 
 **Topic/Challenge:** [DESCRIBE]
@@ -353,6 +515,8 @@ Think outside the box!"
                 Category = "Creative",
                 Tags = new List<string> { "social", "marketing", "content" },
                 Description = "Create engaging social media posts",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Create social media content for:
 
 **Platform:** [Twitter/LinkedIn/Instagram/etc.]
@@ -372,6 +536,8 @@ Generate [NUMBER] variations with different angles/hooks."
                 Category = "Productivity",
                 Tags = new List<string> { "meeting", "summary", "notes" },
                 Description = "Summarize meetings and extract action items",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Summarize the following meeting notes:
 
 **Meeting Notes:**
@@ -396,6 +562,8 @@ Format for easy sharing with stakeholders."
                 Category = "Productivity",
                 Tags = new List<string> { "tasks", "planning", "project" },
                 Description = "Break down complex tasks into manageable steps",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Break down this task/project into actionable steps:
 
 **Task:** [DESCRIBE THE TASK]
@@ -418,6 +586,8 @@ Provide:
                 Category = "Productivity",
                 Tags = new List<string> { "decision", "analysis", "compare" },
                 Description = "Create decision matrices for complex choices",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Help me make a decision between these options:
 
 **Options:**
@@ -447,6 +617,8 @@ Create a weighted decision matrix and provide:
                 Category = "Learning",
                 Tags = new List<string> { "learn", "explain", "education" },
                 Description = "Get clear explanations of complex concepts",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Explain [CONCEPT] to me.
 
 **My Background:** [BEGINNER/INTERMEDIATE/ADVANCED]
@@ -468,6 +640,8 @@ Please include:
                 Category = "Learning",
                 Tags = new List<string> { "study", "education", "exam" },
                 Description = "Create comprehensive study guides",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Create a study guide for: [TOPIC/SUBJECT]
 
 **Exam/Goal:** [WHAT I'M PREPARING FOR]
@@ -490,6 +664,8 @@ Include:
                 Category = "Learning",
                 Tags = new List<string> { "simple", "explain", "beginner" },
                 Description = "Get simple explanations of complex topics",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Explain [COMPLEX TOPIC] like I'm 5 years old.
 
 Use:
@@ -509,6 +685,8 @@ Then provide a slightly more detailed explanation for someone with basic knowled
                 Category = "AI Assistant",
                 Tags = new List<string> { "system", "persona", "assistant" },
                 Description = "Create custom AI assistant personas",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"You are [ROLE/PERSONA], an expert in [DOMAIN].
 
 **Your characteristics:**
@@ -538,6 +716,8 @@ Begin by introducing yourself briefly."
                 Category = "AI Assistant",
                 Tags = new List<string> { "prompt", "improve", "optimize" },
                 Description = "Improve and optimize your prompts",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Improve this prompt to get better AI responses:
 
 **Original Prompt:**
@@ -562,6 +742,8 @@ Focus on clarity, specificity, and structure."
                 Category = "AI Assistant",
                 Tags = new List<string> { "reasoning", "logic", "step-by-step" },
                 Description = "Get step-by-step reasoning for complex problems",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Solve this problem using step-by-step reasoning:
 
 **Problem:**
@@ -586,6 +768,8 @@ Take your time and be thorough."
                 Category = "Business",
                 Tags = new List<string> { "business", "plan", "startup" },
                 Description = "Create business plan outlines",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Create a business plan outline for:
 
 **Business Idea:** [DESCRIPTION]
@@ -612,6 +796,8 @@ Include sections for:
                 Category = "Business",
                 Tags = new List<string> { "pitch", "investor", "presentation" },
                 Description = "Create compelling pitch deck content",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Create pitch deck content for:
 
 **Company:** [NAME]
@@ -640,6 +826,8 @@ Keep each slide concise and impactful."
                 Category = "Business",
                 Tags = new List<string> { "persona", "user", "marketing" },
                 Description = "Create detailed user personas",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Create a detailed user persona for:
 
 **Product/Service:** [DESCRIPTION]
@@ -666,6 +854,8 @@ Make it realistic and actionable for marketing."
                 Category = "Communication",
                 Tags = new List<string> { "feedback", "review", "communication" },
                 Description = "Give constructive feedback effectively",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Help me give constructive feedback on:
 
 **Situation:** [WHAT HAPPENED]
@@ -688,6 +878,8 @@ Tone: [Formal/Casual/Supportive/Direct]"
                 Category = "Communication",
                 Tags = new List<string> { "conversation", "conflict", "communication" },
                 Description = "Prepare for difficult conversations",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Help me prepare for a difficult conversation:
 
 **Situation:** [DESCRIBE]
@@ -712,6 +904,8 @@ Provide:
                 Category = "Communication",
                 Tags = new List<string> { "presentation", "speaking", "slides" },
                 Description = "Create engaging presentation outlines",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Create a presentation outline for:
 
 **Topic:** [SUBJECT]
@@ -739,6 +933,8 @@ Suggest visuals for each section."
                 Category = "Research",
                 Tags = new List<string> { "research", "academic", "review" },
                 Description = "Structure literature reviews",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Help me structure a literature review on:
 
 **Topic:** [RESEARCH TOPIC]
@@ -762,6 +958,8 @@ Provide:
                 Category = "Research",
                 Tags = new List<string> { "research", "questions", "academic" },
                 Description = "Generate research questions",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Generate research questions for:
 
 **Topic Area:** [BROAD TOPIC]
@@ -786,6 +984,8 @@ Provide:
                 Category = "Career",
                 Tags = new List<string> { "resume", "job", "career" },
                 Description = "Improve resume bullet points",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Improve these resume bullet points:
 
 **Current Role:** [JOB TITLE]
@@ -813,6 +1013,8 @@ Provide before/after comparisons."
                 Category = "Career",
                 Tags = new List<string> { "interview", "job", "career" },
                 Description = "Prepare for job interviews",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Help me prepare for an interview:
 
 **Position:** [JOB TITLE]
@@ -835,6 +1037,8 @@ Provide:
                 Category = "Career",
                 Tags = new List<string> { "cover-letter", "job", "application" },
                 Description = "Write compelling cover letters",
+                IsOfficial = true,
+                IsCommunity = false,
                 Content = @"Write a cover letter for:
 
 **Position:** [JOB TITLE]
@@ -852,7 +1056,466 @@ Make it:
 - Specific to the role
 - Showing personality
 - With a strong opening and closing"
+            },
+
+            // === DATA SCIENCE ===
+            new()
+            {
+                Id = "data-cleaning",
+                Title = "Data Cleaning Guide",
+                Category = "Data Science",
+                Tags = new List<string> { "data", "cleaning", "preprocessing" },
+                Description = "Get guidance on cleaning and preprocessing data",
+                IsOfficial = true,
+                IsCommunity = false,
+                Content = @"Help me clean and preprocess this dataset:
+
+**Data Description:** [DESCRIBE YOUR DATA]
+**Data Format:** [CSV/JSON/SQL/etc.]
+**Sample Data:**
+```
+[PASTE SAMPLE ROWS]
+```
+
+**Known Issues:**
+- [Issue 1: e.g., missing values]
+- [Issue 2: e.g., duplicates]
+
+Please provide:
+1. Data quality assessment
+2. Cleaning steps with code examples
+3. Handling missing values strategy
+4. Outlier detection approach
+5. Data type conversions needed
+6. Validation checks to implement"
+            },
+            new()
+            {
+                Id = "data-visualization",
+                Title = "Data Visualization Advisor",
+                Category = "Data Science",
+                Tags = new List<string> { "visualization", "charts", "graphs" },
+                Description = "Get recommendations for visualizing your data",
+                IsOfficial = true,
+                IsCommunity = false,
+                Content = @"Recommend visualizations for my data:
+
+**Data Type:** [Time series/Categorical/Numerical/etc.]
+**Variables:** [LIST KEY VARIABLES]
+**Audience:** [Technical/Executive/General]
+**Goal:** [Compare/Show trends/Distribution/Correlation]
+**Tool:** [Python/R/Tableau/Excel/etc.]
+
+Please suggest:
+1. Best chart types for this data
+2. Color scheme recommendations
+3. Code examples for implementation
+4. Accessibility considerations
+5. Common pitfalls to avoid"
+            },
+            new()
+            {
+                Id = "statistical-analysis",
+                Title = "Statistical Analysis Helper",
+                Category = "Data Science",
+                Tags = new List<string> { "statistics", "analysis", "hypothesis" },
+                Description = "Get help with statistical analysis",
+                IsOfficial = true,
+                IsCommunity = false,
+                Content = @"Help me with statistical analysis:
+
+**Research Question:** [WHAT YOU WANT TO KNOW]
+**Data Description:** [VARIABLES AND TYPES]
+**Sample Size:** [N]
+**Hypothesis:** [IF APPLICABLE]
+
+Please provide:
+1. Appropriate statistical test(s)
+2. Assumptions to check
+3. Code implementation (Python/R)
+4. How to interpret results
+5. Effect size considerations
+6. Limitations of the analysis"
+            },
+
+            // === DEVOPS ===
+            new()
+            {
+                Id = "dockerfile-generator",
+                Title = "Dockerfile Generator",
+                Category = "DevOps",
+                Tags = new List<string> { "docker", "container", "deployment" },
+                Description = "Generate optimized Dockerfiles",
+                IsOfficial = true,
+                IsCommunity = false,
+                Content = @"Create a Dockerfile for:
+
+**Application Type:** [Web app/API/Worker/etc.]
+**Language/Framework:** [Node.js/Python/Go/etc.]
+**Base Image Preference:** [Alpine/Debian/etc.]
+**Requirements:**
+- [Requirement 1]
+- [Requirement 2]
+
+Please provide:
+1. Optimized multi-stage Dockerfile
+2. .dockerignore file
+3. Security best practices
+4. Build and run commands
+5. Environment variable handling
+6. Health check configuration"
+            },
+            new()
+            {
+                Id = "kubernetes-config",
+                Title = "Kubernetes Configuration",
+                Category = "DevOps",
+                Tags = new List<string> { "kubernetes", "k8s", "orchestration" },
+                Description = "Generate Kubernetes manifests",
+                IsOfficial = true,
+                IsCommunity = false,
+                Content = @"Create Kubernetes configuration for:
+
+**Application:** [NAME AND DESCRIPTION]
+**Replicas:** [NUMBER]
+**Resources:** [CPU/Memory requirements]
+**Exposure:** [Internal/External/LoadBalancer]
+**Storage:** [Persistent volume needs]
+
+Please generate:
+1. Deployment manifest
+2. Service manifest
+3. ConfigMap/Secrets
+4. Ingress (if needed)
+5. Resource limits
+6. Health probes
+7. Scaling configuration"
+            },
+            new()
+            {
+                Id = "monitoring-setup",
+                Title = "Monitoring Setup Guide",
+                Category = "DevOps",
+                Tags = new List<string> { "monitoring", "observability", "alerts" },
+                Description = "Set up monitoring and alerting",
+                IsOfficial = true,
+                IsCommunity = false,
+                Content = @"Help me set up monitoring for:
+
+**System Type:** [Web app/Microservices/Database/etc.]
+**Stack:** [Current tech stack]
+**Metrics Needed:** [Performance/Errors/Business/etc.]
+**Alert Requirements:** [What should trigger alerts]
+
+Please provide:
+1. Key metrics to track
+2. Tool recommendations
+3. Dashboard layout suggestions
+4. Alert threshold guidelines
+5. Log aggregation strategy
+6. Incident response workflow"
+            },
+
+            // === DESIGN ===
+            new()
+            {
+                Id = "ui-feedback",
+                Title = "UI Design Feedback",
+                Category = "Design",
+                Tags = new List<string> { "ui", "design", "feedback" },
+                Description = "Get feedback on UI designs",
+                IsOfficial = true,
+                IsCommunity = false,
+                Content = @"Review this UI design:
+
+**Screen/Component:** [DESCRIBE]
+**Purpose:** [WHAT IT DOES]
+**Target Users:** [WHO]
+**Platform:** [Web/iOS/Android/Desktop]
+
+Please evaluate:
+1. Visual hierarchy
+2. Color and contrast
+3. Typography choices
+4. Spacing and alignment
+5. Interactive elements
+6. Consistency with design systems
+7. Specific improvement suggestions"
+            },
+            new()
+            {
+                Id = "accessibility-audit",
+                Title = "Accessibility Audit",
+                Category = "Design",
+                Tags = new List<string> { "accessibility", "a11y", "wcag" },
+                Description = "Audit designs for accessibility",
+                IsOfficial = true,
+                IsCommunity = false,
+                Content = @"Audit this design/component for accessibility:
+
+**Component:** [DESCRIBE]
+**Current Implementation:** [HTML/DESCRIPTION]
+**Target WCAG Level:** [A/AA/AAA]
+
+Please check:
+1. Color contrast ratios
+2. Keyboard navigation
+3. Screen reader compatibility
+4. Focus indicators
+5. Alternative text needs
+6. Form accessibility
+7. Motion/animation concerns
+8. Specific WCAG violations and fixes"
+            },
+            new()
+            {
+                Id = "design-system",
+                Title = "Design System Component",
+                Category = "Design",
+                Tags = new List<string> { "design-system", "components", "tokens" },
+                Description = "Create design system components",
+                IsOfficial = true,
+                IsCommunity = false,
+                Content = @"Create a design system component for:
+
+**Component:** [Button/Card/Modal/etc.]
+**Variants:** [Primary/Secondary/etc.]
+**States:** [Default/Hover/Active/Disabled]
+**Framework:** [React/Vue/CSS/etc.]
+
+Please provide:
+1. Component specifications
+2. Design tokens (colors, spacing, typography)
+3. Variant definitions
+4. State behaviors
+5. Usage guidelines
+6. Code implementation
+7. Documentation template"
+            },
+
+            // === EDUCATION ===
+            new()
+            {
+                Id = "lesson-plan",
+                Title = "Lesson Plan Creator",
+                Category = "Education",
+                Tags = new List<string> { "teaching", "lesson", "curriculum" },
+                Description = "Create structured lesson plans",
+                IsOfficial = true,
+                IsCommunity = false,
+                Content = @"Create a lesson plan for:
+
+**Subject:** [TOPIC]
+**Grade/Level:** [AGE/SKILL LEVEL]
+**Duration:** [TIME]
+**Learning Objectives:** [WHAT STUDENTS WILL LEARN]
+**Prerequisites:** [PRIOR KNOWLEDGE NEEDED]
+
+Please include:
+1. Introduction/Hook (5 min)
+2. Main instruction
+3. Guided practice
+4. Independent practice
+5. Assessment methods
+6. Differentiation strategies
+7. Materials needed
+8. Homework/Extension activities"
+            },
+            new()
+            {
+                Id = "quiz-generator",
+                Title = "Quiz Generator",
+                Category = "Education",
+                Tags = new List<string> { "quiz", "assessment", "questions" },
+                Description = "Generate quizzes and assessments",
+                IsOfficial = true,
+                IsCommunity = false,
+                Content = @"Generate a quiz on:
+
+**Topic:** [SUBJECT]
+**Level:** [Beginner/Intermediate/Advanced]
+**Question Types:** [Multiple choice/Short answer/Essay]
+**Number of Questions:** [COUNT]
+**Time Limit:** [MINUTES]
+
+Please create:
+1. Questions with varying difficulty
+2. Answer key with explanations
+3. Point values
+4. Common misconceptions to test
+5. Bloom's taxonomy alignment
+6. Grading rubric (for open-ended)"
+            },
+
+            // === SALES & MARKETING ===
+            new()
+            {
+                Id = "email-campaign",
+                Title = "Email Campaign Writer",
+                Category = "Sales & Marketing",
+                Tags = new List<string> { "email", "marketing", "campaign" },
+                Description = "Create email marketing campaigns",
+                IsOfficial = true,
+                IsCommunity = false,
+                Content = @"Create an email campaign for:
+
+**Product/Service:** [DESCRIPTION]
+**Campaign Goal:** [Awareness/Conversion/Retention]
+**Target Audience:** [WHO]
+**Email Sequence:** [NUMBER OF EMAILS]
+**Tone:** [Professional/Casual/Urgent]
+
+Please provide:
+1. Subject lines (A/B test options)
+2. Preview text
+3. Email body copy
+4. Call-to-action buttons
+5. Personalization tokens
+6. Send timing recommendations
+7. Segmentation suggestions"
+            },
+            new()
+            {
+                Id = "seo-content",
+                Title = "SEO Content Optimizer",
+                Category = "Sales & Marketing",
+                Tags = new List<string> { "seo", "content", "keywords" },
+                Description = "Optimize content for search engines",
+                IsOfficial = true,
+                IsCommunity = false,
+                Content = @"Optimize this content for SEO:
+
+**Target Keyword:** [PRIMARY KEYWORD]
+**Secondary Keywords:** [LIST]
+**Content Type:** [Blog/Landing page/Product page]
+**Current Content:**
+```
+[PASTE CONTENT]
+```
+
+Please provide:
+1. Title tag optimization
+2. Meta description
+3. Header structure (H1, H2, H3)
+4. Keyword placement suggestions
+5. Internal linking opportunities
+6. Content gaps to fill
+7. Readability improvements"
+            },
+
+            // === CUSTOMER SUPPORT ===
+            new()
+            {
+                Id = "support-response",
+                Title = "Support Response Templates",
+                Category = "Customer Support",
+                Tags = new List<string> { "support", "customer", "response" },
+                Description = "Create customer support response templates",
+                IsOfficial = true,
+                IsCommunity = false,
+                Content = @"Create a support response for:
+
+**Issue Type:** [Complaint/Question/Bug report/Feature request]
+**Customer Sentiment:** [Angry/Frustrated/Neutral/Happy]
+**Issue Description:** [DESCRIBE THE PROBLEM]
+**Resolution Available:** [Yes/No/Partial]
+
+Please provide:
+1. Empathetic opening
+2. Issue acknowledgment
+3. Solution/Next steps
+4. Timeline expectations
+5. Closing with care
+6. Follow-up actions
+7. Escalation criteria (if needed)"
+            },
+            new()
+            {
+                Id = "faq-generator",
+                Title = "FAQ Generator",
+                Category = "Customer Support",
+                Tags = new List<string> { "faq", "documentation", "help" },
+                Description = "Generate FAQ documentation",
+                IsOfficial = true,
+                IsCommunity = false,
+                Content = @"Generate FAQs for:
+
+**Product/Service:** [DESCRIPTION]
+**Target Audience:** [New users/All users/Specific segment]
+**Topics to Cover:** [LIST MAIN AREAS]
+**Tone:** [Formal/Friendly/Technical]
+
+Please create:
+1. 10-15 common questions
+2. Clear, concise answers
+3. Related questions links
+4. Troubleshooting steps where needed
+5. Contact escalation paths
+6. Category organization"
+            },
+
+            // === PERSONAL DEVELOPMENT ===
+            new()
+            {
+                Id = "goal-setting",
+                Title = "Goal Setting Framework",
+                Category = "Personal Development",
+                Tags = new List<string> { "goals", "planning", "productivity" },
+                Description = "Create SMART goals and action plans",
+                IsOfficial = true,
+                IsCommunity = false,
+                Content = @"Help me set and plan for this goal:
+
+**Goal Area:** [Career/Health/Finance/Learning/etc.]
+**Desired Outcome:** [WHAT YOU WANT TO ACHIEVE]
+**Timeline:** [WHEN]
+**Current Situation:** [WHERE YOU ARE NOW]
+**Resources Available:** [TIME/MONEY/SUPPORT]
+
+Please provide:
+1. SMART goal formulation
+2. Milestone breakdown
+3. Weekly action items
+4. Potential obstacles and solutions
+5. Accountability measures
+6. Progress tracking method
+7. Reward system suggestions"
+            },
+            new()
+            {
+                Id = "habit-tracker",
+                Title = "Habit Building Plan",
+                Category = "Personal Development",
+                Tags = new List<string> { "habits", "routine", "self-improvement" },
+                Description = "Create habit building strategies",
+                IsOfficial = true,
+                IsCommunity = false,
+                Content = @"Help me build this habit:
+
+**Habit:** [WHAT YOU WANT TO DO]
+**Frequency:** [Daily/Weekly/etc.]
+**Current Routine:** [EXISTING HABITS]
+**Motivation:** [WHY THIS MATTERS]
+**Past Attempts:** [WHAT DIDN'T WORK]
+
+Please provide:
+1. Habit stacking strategy
+2. Implementation intentions
+3. Environment design tips
+4. Cue-routine-reward loop
+5. Tracking method
+6. Recovery plan for missed days
+7. 30-day progression plan"
             }
         };
+        
+        // Mark all built-in templates as official
+        foreach (var template in templates)
+        {
+            template.IsOfficial = true;
+            template.IsCommunity = false;
+        }
+        
+        return templates;
     }
 }

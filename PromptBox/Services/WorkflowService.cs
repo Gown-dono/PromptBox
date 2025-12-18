@@ -104,39 +104,226 @@ public class WorkflowService : IWorkflowService
         AIGenerationSettings settings,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var stepOutputs = new Dictionary<string, string>
+        // Migrate workflow if needed
+        MigrateWorkflow(workflow);
+        
+        // Initialize execution context
+        var context = new WorkflowExecutionContext
         {
-            { "input", initialInput },
-            { "initial_input", initialInput }
+            InitialInput = initialInput,
+            PreviousOutput = initialInput,
+            CancellationToken = cancellationToken,
+            Variables = new Dictionary<string, string>
+            {
+                { "input", initialInput },
+                { "initial_input", initialInput }
+            }
         };
         
-        string previousOutput = initialInput;
-
-        for (int i = 0; i < workflow.Steps.Count; i++)
+        // Find start step
+        var startStep = workflow.GetStartStep();
+        if (startStep == null)
         {
-            if (cancellationToken.IsCancellationRequested)
+            yield return new WorkflowStepResult
+            {
+                Success = false,
+                Error = "No start step found in workflow"
+            };
+            yield break;
+        }
+        
+        // Execute using graph traversal
+        await foreach (var result in ExecuteStepAsync(workflow, startStep.StepId, context, settings))
+        {
+            yield return result;
+            
+            if (!result.Success && !(workflow.GetStepById(result.StepId)?.ErrorHandling?.ContinueOnError ?? false))
+            {
                 yield break;
-
-            var step = workflow.Steps[i];
+            }
+        }
+    }
+    
+    private async IAsyncEnumerable<WorkflowStepResult> ExecuteStepAsync(
+        Workflow workflow,
+        string stepId,
+        WorkflowExecutionContext context,
+        AIGenerationSettings settings)
+    {
+        if (context.CancellationToken.IsCancellationRequested)
+            yield break;
+        
+        var step = workflow.GetStepById(stepId);
+        if (step == null) yield break;
+        
+        // Check for infinite loop (except for loop steps which handle their own iteration)
+        if (step.StepType != WorkflowStepType.Loop && context.VisitedSteps.Contains(stepId))
+        {
+            Debug.WriteLine($"Skipping already visited step: {step.Name}");
+            yield break;
+        }
+        
+        context.VisitedSteps.Add(stepId);
+        context.CurrentStepId = stepId;
+        
+        var stepIndex = workflow.Steps.IndexOf(step);
+        
+        StepStarted?.Invoke(this, new WorkflowStepEventArgs
+        {
+            StepIndex = stepIndex,
+            StepName = step.Name,
+            TotalSteps = workflow.Steps.Count
+        });
+        
+        // Execute based on step type
+        WorkflowStepResult result;
+        
+        switch (step.StepType)
+        {
+            case WorkflowStepType.Loop:
+                await foreach (var loopResult in ExecuteLoopStepAsync(workflow, step, context, settings))
+                {
+                    yield return loopResult;
+                }
+                yield break;
+                
+            case WorkflowStepType.Parallel:
+                await foreach (var parallelResult in ExecuteParallelStepAsync(workflow, step, context, settings))
+                {
+                    yield return parallelResult;
+                }
+                yield break;
+                
+            case WorkflowStepType.Conditional:
+                result = await ExecuteStepWithRetryAsync(workflow, step, context, settings);
+                yield return result;
+                
+                if (result.Success)
+                {
+                    // Evaluate conditions and follow matching branch
+                    var nextStepId = EvaluateConditionalBranches(step, result.Output, result);
+                    if (!string.IsNullOrEmpty(nextStepId))
+                    {
+                        await foreach (var branchResult in ExecuteStepAsync(workflow, nextStepId, context, settings))
+                        {
+                            yield return branchResult;
+                        }
+                    }
+                }
+                else
+                {
+                    // Failure - check for fallback step first
+                    var fallbackStepId = step.ErrorHandling?.FallbackStepId;
+                    var continueOnError = step.ErrorHandling?.ContinueOnError ?? false;
+                    
+                    if (!string.IsNullOrEmpty(fallbackStepId))
+                    {
+                        Debug.WriteLine($"Conditional step '{step.Name}' failed, executing fallback step: {fallbackStepId}");
+                        
+                        await foreach (var fallbackResult in ExecuteStepAsync(workflow, fallbackStepId, context, settings))
+                        {
+                            yield return fallbackResult;
+                            
+                            if (!fallbackResult.Success && !continueOnError)
+                            {
+                                yield break;
+                            }
+                        }
+                    }
+                    // No fallback - if ContinueOnError is true, default to NextStepId
+                    else if (continueOnError && !string.IsNullOrEmpty(step.NextStepId))
+                    {
+                        Debug.WriteLine($"Conditional step '{step.Name}' failed but ContinueOnError is true, proceeding to NextStepId");
+                        await foreach (var nextResult in ExecuteStepAsync(workflow, step.NextStepId, context, settings))
+                        {
+                            yield return nextResult;
+                        }
+                    }
+                }
+                yield break;
+                
+            default:
+                result = await ExecuteStepWithRetryAsync(workflow, step, context, settings);
+                yield return result;
+                
+                if (result.Success)
+                {
+                    // Success - continue to next step
+                    if (!string.IsNullOrEmpty(step.NextStepId))
+                    {
+                        await foreach (var nextResult in ExecuteStepAsync(workflow, step.NextStepId, context, settings))
+                        {
+                            yield return nextResult;
+                        }
+                    }
+                }
+                else
+                {
+                    // Failure - check for fallback step
+                    var fallbackStepId = step.ErrorHandling?.FallbackStepId;
+                    var continueOnError = step.ErrorHandling?.ContinueOnError ?? false;
+                    
+                    if (!string.IsNullOrEmpty(fallbackStepId))
+                    {
+                        Debug.WriteLine($"Step '{step.Name}' failed, executing fallback step: {fallbackStepId}");
+                        
+                        // Execute fallback step - it handles its own continuation via its NextStepId
+                        await foreach (var fallbackResult in ExecuteStepAsync(workflow, fallbackStepId, context, settings))
+                        {
+                            yield return fallbackResult;
+                            
+                            // If fallback fails and ContinueOnError is false, stop
+                            if (!fallbackResult.Success && !continueOnError)
+                            {
+                                yield break;
+                            }
+                        }
+                    }
+                    // No fallback - if ContinueOnError is true, continue to next step
+                    else if (continueOnError && !string.IsNullOrEmpty(step.NextStepId))
+                    {
+                        Debug.WriteLine($"Step '{step.Name}' failed but ContinueOnError is true, proceeding to NextStepId");
+                        await foreach (var nextResult in ExecuteStepAsync(workflow, step.NextStepId, context, settings))
+                        {
+                            yield return nextResult;
+                        }
+                    }
+                }
+                break;
+        }
+    }
+    
+    private async Task<WorkflowStepResult> ExecuteStepWithRetryAsync(
+        Workflow workflow,
+        WorkflowStep step,
+        WorkflowExecutionContext context,
+        AIGenerationSettings settings)
+    {
+        var stepIndex = workflow.Steps.IndexOf(step);
+        var totalSteps = workflow.Steps.Count;
+        var maxRetries = step.ErrorHandling?.MaxRetries ?? 0;
+        var retryDelay = step.ErrorHandling?.RetryDelayMs ?? 1000;
+        var useExponentialBackoff = step.ErrorHandling?.UseExponentialBackoff ?? true;
+        
+        WorkflowStepResult? result = null;
+        
+        for (int attempt = 0; attempt <= maxRetries; attempt++)
+        {
+            if (context.CancellationToken.IsCancellationRequested)
+                break;
+            
             var stopwatch = Stopwatch.StartNew();
+            var prompt = BuildStepPrompt(step, context.Variables, context.PreviousOutput, context.InitialInput);
             
-            StepStarted?.Invoke(this, new WorkflowStepEventArgs
+            result = new WorkflowStepResult
             {
-                StepIndex = i,
-                StepName = step.Name,
-                TotalSteps = workflow.Steps.Count
-            });
-
-            // Build the prompt with variable substitution
-            var prompt = BuildStepPrompt(step, stepOutputs, previousOutput);
-            
-            var result = new WorkflowStepResult
-            {
+                StepId = step.StepId,
                 StepOrder = step.Order,
                 StepName = step.Name,
-                Input = prompt
+                Input = prompt,
+                RetryCount = attempt
             };
-
+            
             try
             {
                 var response = await _aiService.GenerateAsync(prompt, settings);
@@ -146,16 +333,29 @@ public class WorkflowService : IWorkflowService
                 result.Output = response.Content;
                 result.Error = response.Error;
                 result.Duration = stopwatch.Elapsed;
-
+                result.TokensUsed = response.TokensUsed;
+                result.ExecutionStatus = response.Success ? NodeExecutionStatus.Success : NodeExecutionStatus.Failed;
+                
                 if (response.Success)
                 {
-                    previousOutput = response.Content;
+                    // Update context
+                    context.PreviousOutput = response.Content;
+                    context.StepResults[step.StepId] = result;
                     
-                    // Store output for variable substitution
                     if (!string.IsNullOrEmpty(step.OutputVariable))
-                        stepOutputs[step.OutputVariable] = response.Content;
+                        context.Variables[step.OutputVariable] = response.Content;
                     
-                    stepOutputs[$"step{i + 1}"] = response.Content;
+                    context.Variables[$"step{step.Order + 1}"] = response.Content;
+                    
+                    StepCompleted?.Invoke(this, new WorkflowStepEventArgs
+                    {
+                        StepIndex = stepIndex,
+                        StepName = step.Name,
+                        TotalSteps = totalSteps,
+                        Result = result
+                    });
+                    
+                    return result;
                 }
             }
             catch (Exception ex)
@@ -164,27 +364,299 @@ public class WorkflowService : IWorkflowService
                 result.Success = false;
                 result.Error = ex.Message;
                 result.Duration = stopwatch.Elapsed;
+                result.ExecutionStatus = NodeExecutionStatus.Failed;
             }
-
-            StepCompleted?.Invoke(this, new WorkflowStepEventArgs
+            
+            // Retry delay
+            if (attempt < maxRetries)
             {
-                StepIndex = i,
-                StepName = step.Name,
-                TotalSteps = workflow.Steps.Count,
-                Result = result
-            });
-
+                var delay = useExponentialBackoff 
+                    ? retryDelay * (int)Math.Pow(2, attempt) 
+                    : retryDelay;
+                await Task.Delay(delay, context.CancellationToken);
+            }
+        }
+        
+        // All retries failed - check for fallback
+        if (result != null && !result.Success && !string.IsNullOrEmpty(step.ErrorHandling?.FallbackStepId))
+        {
+            result.Error += $" (Fallback to step: {step.ErrorHandling.FallbackStepId})";
+        }
+        
+        StepCompleted?.Invoke(this, new WorkflowStepEventArgs
+        {
+            StepIndex = stepIndex,
+            StepName = step.Name,
+            TotalSteps = totalSteps,
+            Result = result
+        });
+        
+        return result ?? new WorkflowStepResult { Success = false, Error = "Unknown error" };
+    }
+    
+    private async IAsyncEnumerable<WorkflowStepResult> ExecuteLoopStepAsync(
+        Workflow workflow,
+        WorkflowStep step,
+        WorkflowExecutionContext context,
+        AIGenerationSettings settings)
+    {
+        var loopConfig = step.LoopConfig ?? new LoopConfig();
+        var maxIterations = loopConfig.MaxIterations;
+        var loopVariable = loopConfig.LoopVariable;
+        
+        context.LoopCounters[step.StepId] = 0;
+        
+        // Track cumulative token usage across all iterations
+        // TokensUsed in each iteration result reflects that iteration only
+        // The last iteration's result will have cumulative tokens in a separate variable
+        var cumulativeTokens = 0;
+        
+        for (int iteration = 0; iteration < maxIterations; iteration++)
+        {
+            if (context.CancellationToken.IsCancellationRequested)
+                yield break;
+            
+            context.LoopCounters[step.StepId] = iteration;
+            context.Variables[loopVariable] = iteration.ToString();
+            context.Variables[$"{step.StepId}_iteration"] = iteration.ToString();
+            
+            // Remove from visited to allow re-execution
+            context.VisitedSteps.Remove(step.StepId);
+            
+            var result = await ExecuteStepWithRetryAsync(workflow, step, context, settings);
+            result.StepName = $"{step.Name} (Iteration {iteration + 1})";
+            
+            // Track cumulative tokens - each result shows its own tokens
+            // For TokenCount exit conditions, we use the current iteration's tokens
+            cumulativeTokens += result.TokensUsed;
+            
+            // Store cumulative tokens in context for reference
+            context.Variables[$"{step.StepId}_total_tokens"] = cumulativeTokens.ToString();
+            
             yield return result;
-
-            // Stop if step failed
+            
             if (!result.Success)
                 yield break;
+            
+            // Check exit condition (uses current iteration's result for TokenCount evaluation)
+            if (loopConfig.ExitCondition.Evaluate(result.Output, result))
+            {
+                Debug.WriteLine($"Loop exit condition met at iteration {iteration + 1}");
+                break;
+            }
+        }
+        
+        // Continue to next step after loop
+        if (!string.IsNullOrEmpty(step.NextStepId))
+        {
+            await foreach (var nextResult in ExecuteStepAsync(workflow, step.NextStepId, context, settings))
+            {
+                yield return nextResult;
+            }
         }
     }
+    
+    private async IAsyncEnumerable<WorkflowStepResult> ExecuteParallelStepAsync(
+        Workflow workflow,
+        WorkflowStep step,
+        WorkflowExecutionContext context,
+        AIGenerationSettings settings)
+    {
+        var parallelConfig = step.ParallelConfig ?? new ParallelConfig();
+        var branchStepIds = parallelConfig.BranchStepIds;
+        
+        if (branchStepIds.Count == 0)
+        {
+            Debug.WriteLine($"Parallel step '{step.Name}' has no branch steps configured");
+            yield return new WorkflowStepResult
+            {
+                StepId = step.StepId,
+                StepName = step.Name,
+                Success = false,
+                Error = "No parallel branches configured",
+                ExecutionStatus = NodeExecutionStatus.Failed
+            };
+            yield break;
+        }
+        
+        var stepIndex = workflow.Steps.IndexOf(step);
+        var totalSteps = workflow.Steps.Count;
+        
+        // Notify step started
+        StepStarted?.Invoke(this, new WorkflowStepEventArgs
+        {
+            StepIndex = stepIndex,
+            StepName = step.Name,
+            TotalSteps = totalSteps
+        });
+        
+        // Create tasks for each parallel branch
+        var branchTasks = new List<Task<List<WorkflowStepResult>>>();
+        var branchContexts = new List<WorkflowExecutionContext>();
+        
+        foreach (var branchStepId in branchStepIds)
+        {
+            // Create a copy of the context for each branch to avoid conflicts
+            var branchContext = new WorkflowExecutionContext
+            {
+                InitialInput = context.InitialInput,
+                PreviousOutput = context.PreviousOutput,
+                CancellationToken = context.CancellationToken,
+                Variables = new Dictionary<string, string>(context.Variables),
+                StepResults = new Dictionary<string, WorkflowStepResult>(context.StepResults),
+                VisitedSteps = new HashSet<string>(), // Fresh visited set for each branch
+                LoopCounters = new Dictionary<string, int>(context.LoopCounters)
+            };
+            branchContexts.Add(branchContext);
+            
+            // Create task that collects all results from the branch
+            var task = CollectBranchResultsAsync(workflow, branchStepId, branchContext, settings);
+            branchTasks.Add(task);
+        }
+        
+        // Wait for all branches to complete
+        var allBranchResults = await Task.WhenAll(branchTasks);
+        
+        // Yield results from all branches and track success
+        // Token aggregation: sum of all branch tokens (total cost of parallel execution)
+        var allSucceeded = true;
+        var combinedOutputs = new List<string>();
+        var totalTokensUsed = 0;
+        
+        for (int i = 0; i < allBranchResults.Length; i++)
+        {
+            var branchResults = allBranchResults[i];
+            var branchContext = branchContexts[i];
+            var branchTokens = 0;
+            
+            foreach (var branchResult in branchResults)
+            {
+                branchResult.StepName = $"{branchResult.StepName} (Branch {i + 1})";
+                yield return branchResult;
+                
+                if (!branchResult.Success)
+                    allSucceeded = false;
+                
+                // Sum tokens from all steps in this branch
+                branchTokens += branchResult.TokensUsed;
+            }
+            
+            totalTokensUsed += branchTokens;
+            
+            // Store branch output and token count in context
+            var lastOutput = branchResults.LastOrDefault()?.Output ?? string.Empty;
+            combinedOutputs.Add(lastOutput);
+            context.Variables[$"{parallelConfig.OutputVariablePrefix}_{i}"] = lastOutput;
+            context.Variables[$"{parallelConfig.OutputVariablePrefix}_{i}_tokens"] = branchTokens.ToString();
+            
+            // Merge branch context variables back (last write wins for conflicts)
+            foreach (var kvp in branchContext.Variables)
+            {
+                if (!context.Variables.ContainsKey(kvp.Key))
+                    context.Variables[kvp.Key] = kvp.Value;
+            }
+        }
+        
+        // Create summary result for the parallel step itself
+        // TokensUsed is the sum of all branch tokens (total cost of parallel execution)
+        var parallelResult = new WorkflowStepResult
+        {
+            StepId = step.StepId,
+            StepName = $"{step.Name} (Parallel Complete)",
+            Success = allSucceeded || parallelConfig.ContinueOnBranchFailure,
+            Output = string.Join("\n---\n", combinedOutputs),
+            TokensUsed = totalTokensUsed,
+            ExecutionStatus = allSucceeded ? NodeExecutionStatus.Success : NodeExecutionStatus.Failed
+        };
+        
+        context.PreviousOutput = parallelResult.Output;
+        context.StepResults[step.StepId] = parallelResult;
+        
+        if (!string.IsNullOrEmpty(step.OutputVariable))
+            context.Variables[step.OutputVariable] = parallelResult.Output;
+        
+        yield return parallelResult;
+        
+        // Notify step completed
+        StepCompleted?.Invoke(this, new WorkflowStepEventArgs
+        {
+            StepIndex = stepIndex,
+            StepName = step.Name,
+            TotalSteps = totalSteps,
+            Result = parallelResult
+        });
+        
+        // Continue to next step if successful (or ContinueOnBranchFailure is true)
+        if (parallelResult.Success && !string.IsNullOrEmpty(step.NextStepId))
+        {
+            await foreach (var nextResult in ExecuteStepAsync(workflow, step.NextStepId, context, settings))
+            {
+                yield return nextResult;
+            }
+        }
+    }
+    
+    private async Task<List<WorkflowStepResult>> CollectBranchResultsAsync(
+        Workflow workflow,
+        string startStepId,
+        WorkflowExecutionContext context,
+        AIGenerationSettings settings)
+    {
+        var results = new List<WorkflowStepResult>();
+        
+        // Execute only the single branch step, not the entire chain
+        // The parallel step handles continuation after all branches complete
+        var branchStep = workflow.GetStepById(startStepId);
+        if (branchStep == null)
+        {
+            results.Add(new WorkflowStepResult
+            {
+                StepId = startStepId,
+                StepName = "Unknown",
+                Success = false,
+                Error = $"Branch step '{startStepId}' not found"
+            });
+            return results;
+        }
+        
+        // Execute just this branch step (not following NextStepId)
+        var result = await ExecuteStepWithRetryAsync(workflow, branchStep, context, settings);
+        results.Add(result);
+        
+        return results;
+    }
+    
+    private string? EvaluateConditionalBranches(WorkflowStep step, string output, WorkflowStepResult result)
+    {
+        foreach (var branch in step.ConditionalBranches)
+        {
+            if (branch.Condition.Evaluate(output, result))
+            {
+                Debug.WriteLine($"Conditional branch '{branch.Label}' matched");
+                return branch.NextStepId;
+            }
+        }
+        
+        // Default to NextStepId if no branch matches
+        return step.NextStepId;
+    }
 
-    private string BuildStepPrompt(WorkflowStep step, Dictionary<string, string> variables, string previousOutput)
+    private string BuildStepPrompt(WorkflowStep step, Dictionary<string, string> variables, string previousOutput, string? initialInput = null)
     {
         var prompt = step.PromptTemplate;
+        
+        // Ensure input and initial_input are always available for substitution
+        // This maintains backward compatibility for {{input}} and {{initial_input}} placeholders
+        if (!variables.ContainsKey("input"))
+        {
+            var inputValue = initialInput ?? previousOutput;
+            variables["input"] = inputValue;
+        }
+        if (!variables.ContainsKey("initial_input"))
+        {
+            var inputValue = initialInput ?? variables.GetValueOrDefault("input", previousOutput);
+            variables["initial_input"] = inputValue;
+        }
         
         // Replace variables
         foreach (var kvp in variables)
@@ -198,6 +670,671 @@ public class WorkflowService : IWorkflowService
         
         return prompt;
     }
+    
+    #region Workflow Templates
+    
+    public List<WorkflowTemplate> GetWorkflowTemplates()
+    {
+        return new List<WorkflowTemplate>
+        {
+            CreateCodeReviewWithConditionalTemplate(),
+            CreateIterativeRefinementTemplate(),
+            CreateErrorResilientProcessingTemplate()
+        };
+    }
+    
+    public WorkflowTemplate? GetWorkflowTemplateById(int id)
+    {
+        return GetWorkflowTemplates().FirstOrDefault(t => t.Id == id);
+    }
+    
+    public Workflow CreateWorkflowFromTemplate(int templateId)
+    {
+        var template = GetWorkflowTemplateById(templateId);
+        if (template == null)
+            return new Workflow { Name = "New Workflow" };
+        
+        // Create mapping from old step IDs to new step IDs
+        var idMapping = new Dictionary<string, string>();
+        foreach (var step in template.TemplateWorkflow.Steps)
+        {
+            idMapping[step.StepId] = Guid.NewGuid().ToString();
+        }
+        
+        // Deep copy the template workflow
+        var workflow = new Workflow
+        {
+            Name = $"{template.Name} (Copy)",
+            Description = template.Description,
+            Category = template.Category,
+            IsBuiltIn = false,
+            Steps = template.TemplateWorkflow.Steps.Select(s => new WorkflowStep
+            {
+                StepId = idMapping[s.StepId],
+                Order = s.Order,
+                Name = s.Name,
+                Description = s.Description,
+                PromptTemplate = s.PromptTemplate,
+                UsesPreviousOutput = s.UsesPreviousOutput,
+                OutputVariable = s.OutputVariable,
+                StepType = s.StepType,
+                Position = s.Position,
+                IsStartStep = s.IsStartStep,
+                IsEndStep = s.IsEndStep,
+                // Map NextStepId to new ID
+                NextStepId = !string.IsNullOrEmpty(s.NextStepId) && idMapping.ContainsKey(s.NextStepId) 
+                    ? idMapping[s.NextStepId] 
+                    : null,
+                // Map conditional branches
+                ConditionalBranches = s.ConditionalBranches.Select(b => new ConditionalBranch
+                {
+                    Label = b.Label,
+                    NextStepId = !string.IsNullOrEmpty(b.NextStepId) && idMapping.ContainsKey(b.NextStepId)
+                        ? idMapping[b.NextStepId]
+                        : string.Empty,
+                    Condition = new ConditionEvaluator
+                    {
+                        Type = b.Condition.Type,
+                        ComparisonValue = b.Condition.ComparisonValue,
+                        Operator = b.Condition.Operator
+                    }
+                }).ToList(),
+                ErrorHandling = s.ErrorHandling != null ? new ErrorHandlingConfig
+                {
+                    MaxRetries = s.ErrorHandling.MaxRetries,
+                    RetryDelayMs = s.ErrorHandling.RetryDelayMs,
+                    UseExponentialBackoff = s.ErrorHandling.UseExponentialBackoff,
+                    ContinueOnError = s.ErrorHandling.ContinueOnError,
+                    // Map fallback step ID
+                    FallbackStepId = !string.IsNullOrEmpty(s.ErrorHandling.FallbackStepId) && idMapping.ContainsKey(s.ErrorHandling.FallbackStepId)
+                        ? idMapping[s.ErrorHandling.FallbackStepId]
+                        : null
+                } : null,
+                LoopConfig = s.LoopConfig != null ? new LoopConfig
+                {
+                    MaxIterations = s.LoopConfig.MaxIterations,
+                    LoopVariable = s.LoopConfig.LoopVariable,
+                    ExitCondition = new ConditionEvaluator
+                    {
+                        Type = s.LoopConfig.ExitCondition.Type,
+                        ComparisonValue = s.LoopConfig.ExitCondition.ComparisonValue,
+                        Operator = s.LoopConfig.ExitCondition.Operator
+                    }
+                } : null
+            }).ToList()
+        };
+        
+        // If no NextStepId connections exist, create sequential connections based on Order
+        var hasConnections = workflow.Steps.Any(s => !string.IsNullOrEmpty(s.NextStepId) || s.ConditionalBranches.Any());
+        if (!hasConnections && workflow.Steps.Count > 1)
+        {
+            var orderedSteps = workflow.Steps.OrderBy(s => s.Order).ToList();
+            for (int i = 0; i < orderedSteps.Count - 1; i++)
+            {
+                orderedSteps[i].NextStepId = orderedSteps[i + 1].StepId;
+            }
+        }
+        
+        // Run migration to ensure start step and other defaults are set
+        MigrateWorkflow(workflow);
+        
+        return workflow;
+    }
+    
+    public (bool IsValid, List<string> Errors, List<string> Warnings) ValidateWorkflow(Workflow workflow)
+    {
+        var errors = new List<string>();
+        var warnings = new List<string>();
+        
+        if (workflow.Steps.Count == 0)
+        {
+            errors.Add("Workflow must have at least one step.");
+            return (false, errors, warnings);
+        }
+        
+        // Check for start step
+        var startSteps = workflow.Steps.Where(s => s.IsStartStep).ToList();
+        if (startSteps.Count == 0)
+        {
+            errors.Add("Workflow must have a start step. Mark one step as the start step.");
+        }
+        else if (startSteps.Count > 1)
+        {
+            errors.Add($"Workflow has multiple start steps: {string.Join(", ", startSteps.Select(s => s.Name))}. Only one step can be the start step.");
+        }
+        
+        // Check for unreachable steps
+        var reachable = new HashSet<string>();
+        var startStep = workflow.GetStartStep();
+        if (startStep != null)
+        {
+            var queue = new Queue<string>();
+            queue.Enqueue(startStep.StepId);
+            
+            while (queue.Count > 0)
+            {
+                var stepId = queue.Dequeue();
+                if (reachable.Contains(stepId)) continue;
+                reachable.Add(stepId);
+                
+                var step = workflow.GetStepById(stepId);
+                if (step == null) continue;
+                
+                if (!string.IsNullOrEmpty(step.NextStepId))
+                    queue.Enqueue(step.NextStepId);
+                
+                foreach (var branch in step.ConditionalBranches)
+                {
+                    if (!string.IsNullOrEmpty(branch.NextStepId))
+                        queue.Enqueue(branch.NextStepId);
+                }
+                
+                // Include parallel branch step IDs in reachability
+                if (step.StepType == WorkflowStepType.Parallel && step.ParallelConfig != null)
+                {
+                    foreach (var branchStepId in step.ParallelConfig.BranchStepIds)
+                    {
+                        if (!string.IsNullOrEmpty(branchStepId) && !reachable.Contains(branchStepId))
+                            queue.Enqueue(branchStepId);
+                    }
+                }
+                
+                // Include fallback step edges in reachability
+                if (!string.IsNullOrEmpty(step.ErrorHandling?.FallbackStepId))
+                    queue.Enqueue(step.ErrorHandling.FallbackStepId);
+            }
+        }
+        
+        var unreachable = workflow.Steps.Where(s => !reachable.Contains(s.StepId)).ToList();
+        if (unreachable.Any())
+        {
+            errors.Add($"Unreachable steps: {string.Join(", ", unreachable.Select(s => s.Name))}");
+        }
+        
+        // Check for end steps that are marked but not reachable
+        var unreachableEndSteps = workflow.Steps.Where(s => s.IsEndStep && !reachable.Contains(s.StepId)).ToList();
+        if (unreachableEndSteps.Any())
+        {
+            errors.Add($"End steps are not reachable from start: {string.Join(", ", unreachableEndSteps.Select(s => s.Name))}");
+        }
+        
+        // Check standard steps have outgoing paths (unless they are end steps)
+        foreach (var step in workflow.Steps.Where(s => s.StepType == WorkflowStepType.Standard && !s.IsEndStep))
+        {
+            if (string.IsNullOrEmpty(step.NextStepId) && step.ConditionalBranches.Count == 0)
+            {
+                warnings.Add($"Standard step '{step.Name}' has no next step configured. The workflow will end after this step.");
+            }
+        }
+        
+        // Check conditional steps have branches and outgoing paths
+        foreach (var step in workflow.Steps.Where(s => s.StepType == WorkflowStepType.Conditional))
+        {
+            var hasBranches = step.ConditionalBranches.Count > 0;
+            var hasDefaultNext = !string.IsNullOrEmpty(step.NextStepId);
+            var hasAnyBranchTarget = step.ConditionalBranches.Any(b => !string.IsNullOrEmpty(b.NextStepId));
+            
+            if (!hasBranches && !hasDefaultNext)
+            {
+                errors.Add($"Conditional step '{step.Name}' has no branches or default next step. Add at least one branch or set a default next step.");
+            }
+            else if (hasBranches && !hasAnyBranchTarget && !hasDefaultNext)
+            {
+                errors.Add($"Conditional step '{step.Name}' has branches but none have target steps configured, and no default next step is set. The workflow will have no path forward.");
+            }
+            else if (hasBranches && !hasDefaultNext)
+            {
+                warnings.Add($"Conditional step '{step.Name}' has no default next step. If no branch conditions match, the workflow will end at this step.");
+            }
+        }
+        
+        // Check loop steps have valid exit conditions
+        foreach (var step in workflow.Steps.Where(s => s.StepType == WorkflowStepType.Loop))
+        {
+            if (step.LoopConfig == null)
+            {
+                errors.Add($"Loop step '{step.Name}' has no loop configuration.");
+                continue;
+            }
+            
+            // Validate MaxIterations
+            if (step.LoopConfig.MaxIterations < 1)
+            {
+                errors.Add($"Loop step '{step.Name}' must have at least 1 iteration (current: {step.LoopConfig.MaxIterations}).");
+            }
+            
+            // Validate ExitCondition exists
+            if (step.LoopConfig.ExitCondition == null)
+            {
+                errors.Add($"Loop step '{step.Name}' has no exit condition configured.");
+                continue;
+            }
+            
+            var exitCondition = step.LoopConfig.ExitCondition;
+            
+            // Validate exit condition has meaningful configuration based on type
+            switch (exitCondition.Type)
+            {
+                case ConditionType.OutputContains:
+                case ConditionType.OutputMatches:
+                    if (string.IsNullOrWhiteSpace(exitCondition.ComparisonValue))
+                    {
+                        errors.Add($"Loop step '{step.Name}' exit condition requires a comparison value for {exitCondition.Type}.");
+                    }
+                    break;
+                    
+                case ConditionType.Regex:
+                    if (string.IsNullOrWhiteSpace(exitCondition.ComparisonValue))
+                    {
+                        errors.Add($"Loop step '{step.Name}' exit condition requires a regex pattern.");
+                    }
+                    else
+                    {
+                        // Validate regex pattern is valid
+                        try
+                        {
+                            _ = new System.Text.RegularExpressions.Regex(exitCondition.ComparisonValue);
+                        }
+                        catch (System.ArgumentException)
+                        {
+                            errors.Add($"Loop step '{step.Name}' has an invalid regex pattern: '{exitCondition.ComparisonValue}'.");
+                        }
+                    }
+                    break;
+                    
+                case ConditionType.OutputLength:
+                case ConditionType.TokenCount:
+                    if (string.IsNullOrWhiteSpace(exitCondition.ComparisonValue) || 
+                        !int.TryParse(exitCondition.ComparisonValue, out _))
+                    {
+                        errors.Add($"Loop step '{step.Name}' exit condition requires a numeric comparison value for {exitCondition.Type}.");
+                    }
+                    break;
+                    
+                case ConditionType.Success:
+                    // Success type doesn't require ComparisonValue, it checks result.Success
+                    break;
+            }
+            
+            // Warn about potentially long-running loops with weak exit conditions
+            if (step.LoopConfig.MaxIterations > 20 && 
+                exitCondition.Type == ConditionType.Success &&
+                string.IsNullOrWhiteSpace(exitCondition.ComparisonValue))
+            {
+                warnings.Add($"Loop step '{step.Name}' has high max iterations ({step.LoopConfig.MaxIterations}) with a success-based exit condition. The loop will exit on the first successful iteration. Consider using OutputContains or Regex for more control.");
+            }
+        }
+        
+        // Check parallel steps have valid configuration
+        foreach (var step in workflow.Steps.Where(s => s.StepType == WorkflowStepType.Parallel))
+        {
+            if (step.ParallelConfig == null)
+            {
+                errors.Add($"Parallel step '{step.Name}' has no parallel configuration.");
+                continue;
+            }
+            
+            if (step.ParallelConfig.BranchStepIds.Count == 0)
+            {
+                errors.Add($"Parallel step '{step.Name}' has no branch steps configured.");
+            }
+            else if (step.ParallelConfig.BranchStepIds.Count == 1)
+            {
+                warnings.Add($"Parallel step '{step.Name}' has only one branch. Consider using a standard step instead.");
+            }
+        }
+        
+        // Create set of valid step IDs for reference validation
+        var stepIds = new HashSet<string>(workflow.Steps.Select(s => s.StepId));
+        
+        // Validate parallel branch step IDs exist and check for invalid configurations
+        foreach (var step in workflow.Steps.Where(s => s.StepType == WorkflowStepType.Parallel && s.ParallelConfig != null))
+        {
+            var branchIds = step.ParallelConfig!.BranchStepIds;
+            
+            // Check for duplicate branch step IDs
+            var duplicates = branchIds.GroupBy(id => id).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+            if (duplicates.Any())
+            {
+                errors.Add($"Parallel step '{step.Name}' has duplicate branch step IDs: {string.Join(", ", duplicates)}.");
+            }
+            
+            foreach (var branchStepId in branchIds)
+            {
+                if (string.IsNullOrEmpty(branchStepId))
+                {
+                    errors.Add($"Parallel step '{step.Name}' has an empty branch step ID.");
+                    continue;
+                }
+                
+                if (!stepIds.Contains(branchStepId))
+                {
+                    errors.Add($"Parallel step '{step.Name}' has a branch step ID that does not exist: '{branchStepId}'.");
+                }
+                else if (branchStepId == step.StepId)
+                {
+                    errors.Add($"Parallel step '{step.Name}' cannot have itself as a branch step (self-reference).");
+                }
+                else
+                {
+                    // Check for circular reference: branch step pointing back to parallel step
+                    var branchStep = workflow.GetStepById(branchStepId);
+                    if (branchStep != null)
+                    {
+                        if (branchStep.NextStepId == step.StepId)
+                        {
+                            errors.Add($"Parallel step '{step.Name}' has a circular reference: branch step '{branchStep.Name}' points back to the parallel step.");
+                        }
+                        
+                        // Check conditional branches for circular references
+                        foreach (var branch in branchStep.ConditionalBranches)
+                        {
+                            if (branch.NextStepId == step.StepId)
+                            {
+                                errors.Add($"Parallel step '{step.Name}' has a circular reference: branch step '{branchStep.Name}' conditional branch '{branch.Label}' points back to the parallel step.");
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Warn about ContinueOnBranchFailure semantics
+            if (!step.ParallelConfig.ContinueOnBranchFailure && step.ParallelConfig.WaitForAll)
+            {
+                // This is the default strict mode - no warning needed
+            }
+            else if (step.ParallelConfig.ContinueOnBranchFailure)
+            {
+                // Inform about behavior when branches fail
+                warnings.Add($"Parallel step '{step.Name}' has ContinueOnBranchFailure enabled. If any branch fails, execution will continue to NextStepId. Branch failures will be reported but won't stop the workflow.");
+            }
+        }
+        
+        // Validate NextStepId and ConditionalBranch.NextStepId references exist
+        foreach (var step in workflow.Steps)
+        {
+            // Validate NextStepId
+            if (!string.IsNullOrEmpty(step.NextStepId) && !stepIds.Contains(step.NextStepId))
+            {
+                errors.Add($"Step '{step.Name}' has a NextStepId that does not exist: '{step.NextStepId}'.");
+            }
+            
+            // Validate ConditionalBranch.NextStepId references
+            foreach (var branch in step.ConditionalBranches)
+            {
+                if (!string.IsNullOrEmpty(branch.NextStepId) && !stepIds.Contains(branch.NextStepId))
+                {
+                    errors.Add($"Step '{step.Name}' has a conditional branch '{branch.Label}' with a target step ID that does not exist: '{branch.NextStepId}'.");
+                }
+            }
+        }
+        
+        // Validate FallbackStepId references exist
+        foreach (var step in workflow.Steps)
+        {
+            if (step.ErrorHandling != null && !string.IsNullOrEmpty(step.ErrorHandling.FallbackStepId))
+            {
+                if (!stepIds.Contains(step.ErrorHandling.FallbackStepId))
+                {
+                    errors.Add($"Step '{step.Name}' has a fallback step ID that does not exist: '{step.ErrorHandling.FallbackStepId}'.");
+                }
+                else if (step.ErrorHandling.FallbackStepId == step.StepId)
+                {
+                    errors.Add($"Step '{step.Name}' cannot have itself as a fallback step (would cause infinite loop).");
+                }
+            }
+        }
+        
+        return (errors.Count == 0, errors, warnings);
+    }
+    
+    public void MigrateWorkflow(Workflow workflow)
+    {
+        // Ensure all steps have unique, non-empty StepIds
+        var usedIds = new HashSet<string>();
+        foreach (var step in workflow.Steps)
+        {
+            // Assign new ID if empty or duplicate
+            if (string.IsNullOrEmpty(step.StepId) || usedIds.Contains(step.StepId))
+            {
+                step.StepId = Guid.NewGuid().ToString();
+            }
+            usedIds.Add(step.StepId);
+        }
+        
+        // Set start step if not set
+        if (!workflow.Steps.Any(s => s.IsStartStep) && workflow.Steps.Count > 0)
+        {
+            workflow.Steps.OrderBy(s => s.Order).First().IsStartStep = true;
+        }
+        
+        // Link steps by Order if NextStepId not set (linear migration)
+        var orderedSteps = workflow.Steps.OrderBy(s => s.Order).ToList();
+        for (int i = 0; i < orderedSteps.Count - 1; i++)
+        {
+            if (string.IsNullOrEmpty(orderedSteps[i].NextStepId))
+            {
+                orderedSteps[i].NextStepId = orderedSteps[i + 1].StepId;
+            }
+        }
+        
+        // Set end step
+        var lastStep = orderedSteps.LastOrDefault();
+        if (lastStep != null && string.IsNullOrEmpty(lastStep.NextStepId))
+        {
+            lastStep.IsEndStep = true;
+        }
+        
+        // Assign default positions if not set and migrate HasValidPosition
+        const int startX = 50;
+        const int startY = 50;
+        const int verticalSpacing = 150;
+        
+        for (int i = 0; i < orderedSteps.Count; i++)
+        {
+            var step = orderedSteps[i];
+            
+            if (step.Position == default)
+            {
+                step.Position = new System.Windows.Point(startX, startY + i * verticalSpacing);
+                step.HasValidPosition = true;
+            }
+            else if (!step.HasValidPosition)
+            {
+                // Bug 5 Fix: Migrate existing workflows - set HasValidPosition = true
+                // for all steps with non-default positions
+                step.HasValidPosition = true;
+            }
+        }
+    }
+    
+    private WorkflowTemplate CreateCodeReviewWithConditionalTemplate()
+    {
+        var step1Id = Guid.NewGuid().ToString();
+        var step2Id = Guid.NewGuid().ToString();
+        var step3Id = Guid.NewGuid().ToString();
+        var step4Id = Guid.NewGuid().ToString();
+        
+        return new WorkflowTemplate
+        {
+            Id = 1,
+            Name = "Code Review with Conditional Severity",
+            Description = "Analyzes code and branches based on issue severity",
+            Category = "Review",
+            IconKind = "CodeBraces",
+            IsBuiltIn = true,
+            TemplateWorkflow = new Workflow
+            {
+                Name = "Code Review with Conditional Severity",
+                Steps = new List<WorkflowStep>
+                {
+                    new()
+                    {
+                        StepId = step1Id,
+                        Order = 0,
+                        Name = "Analyze Code",
+                        StepType = WorkflowStepType.Conditional,
+                        IsStartStep = true,
+                        Position = new System.Windows.Point(50, 50),
+                        HasValidPosition = true,
+                        PromptTemplate = "Analyze this code for issues. Rate severity as CRITICAL, MINOR, or NONE:\n\n{{input}}",
+                        OutputVariable = "analysis",
+                        ConditionalBranches = new List<ConditionalBranch>
+                        {
+                            new() { Label = "Critical", NextStepId = step2Id, Condition = new ConditionEvaluator { Type = ConditionType.OutputContains, ComparisonValue = "CRITICAL", Operator = ComparisonOperator.Contains } },
+                            new() { Label = "Minor", NextStepId = step3Id, Condition = new ConditionEvaluator { Type = ConditionType.OutputContains, ComparisonValue = "MINOR", Operator = ComparisonOperator.Contains } }
+                        },
+                        NextStepId = step4Id
+                    },
+                    new()
+                    {
+                        StepId = step2Id,
+                        Order = 1,
+                        Name = "Generate Critical Fixes",
+                        Position = new System.Windows.Point(50, 200),
+                        HasValidPosition = true,
+                        PromptTemplate = "Generate fixes for these critical issues:\n\n{{analysis}}",
+                        IsEndStep = true
+                    },
+                    new()
+                    {
+                        StepId = step3Id,
+                        Order = 2,
+                        Name = "Generate Suggestions",
+                        Position = new System.Windows.Point(300, 200),
+                        HasValidPosition = true,
+                        PromptTemplate = "Generate improvement suggestions for these minor issues:\n\n{{analysis}}",
+                        IsEndStep = true
+                    },
+                    new()
+                    {
+                        StepId = step4Id,
+                        Order = 3,
+                        Name = "No Issues Found",
+                        Position = new System.Windows.Point(550, 200),
+                        HasValidPosition = true,
+                        PromptTemplate = "Confirm no issues found and provide a brief summary:\n\n{{analysis}}",
+                        IsEndStep = true
+                    }
+                }
+            }
+        };
+    }
+    
+    private WorkflowTemplate CreateIterativeRefinementTemplate()
+    {
+        var step1Id = Guid.NewGuid().ToString();
+        var step2Id = Guid.NewGuid().ToString();
+        
+        return new WorkflowTemplate
+        {
+            Id = 2,
+            Name = "Iterative Content Refinement",
+            Description = "Refines content through multiple iterations until quality threshold is met",
+            Category = "Writing",
+            IconKind = "Repeat",
+            IsBuiltIn = true,
+            TemplateWorkflow = new Workflow
+            {
+                Name = "Iterative Content Refinement",
+                Steps = new List<WorkflowStep>
+                {
+                    new()
+                    {
+                        StepId = step1Id,
+                        Order = 0,
+                        Name = "Generate and Refine",
+                        StepType = WorkflowStepType.Loop,
+                        IsStartStep = true,
+                        Position = new System.Windows.Point(50, 50),
+                        HasValidPosition = true,
+                        PromptTemplate = "Iteration {{iteration_count}}: Generate or refine content based on:\n\n{{input}}\n\nPrevious version (if any): {{previous_output}}\n\nEnd your response with 'QUALITY: X/10' where X is your self-assessment.",
+                        OutputVariable = "draft",
+                        LoopConfig = new LoopConfig
+                        {
+                            MaxIterations = 5,
+                            LoopVariable = "iteration_count",
+                            ExitCondition = new ConditionEvaluator
+                            {
+                                Type = ConditionType.Regex,
+                                ComparisonValue = "QUALITY: ([8-9]|10)/10"
+                            }
+                        },
+                        NextStepId = step2Id
+                    },
+                    new()
+                    {
+                        StepId = step2Id,
+                        Order = 1,
+                        Name = "Final Polish",
+                        Position = new System.Windows.Point(50, 200),
+                        HasValidPosition = true,
+                        PromptTemplate = "Polish this final draft:\n\n{{draft}}",
+                        IsEndStep = true
+                    }
+                }
+            }
+        };
+    }
+    
+    private WorkflowTemplate CreateErrorResilientProcessingTemplate()
+    {
+        var step1Id = Guid.NewGuid().ToString();
+        var step2Id = Guid.NewGuid().ToString();
+        
+        return new WorkflowTemplate
+        {
+            Id = 3,
+            Name = "Error-Resilient Processing",
+            Description = "Processes data with automatic retry and error handling",
+            Category = "Data",
+            IconKind = "ShieldCheck",
+            IsBuiltIn = true,
+            TemplateWorkflow = new Workflow
+            {
+                Name = "Error-Resilient Processing",
+                Steps = new List<WorkflowStep>
+                {
+                    new()
+                    {
+                        StepId = step1Id,
+                        Order = 0,
+                        Name = "Process Data",
+                        IsStartStep = true,
+                        Position = new System.Windows.Point(50, 50),
+                        HasValidPosition = true,
+                        PromptTemplate = "Process this data:\n\n{{input}}",
+                        OutputVariable = "processed",
+                        ErrorHandling = new ErrorHandlingConfig
+                        {
+                            MaxRetries = 3,
+                            RetryDelayMs = 1000,
+                            UseExponentialBackoff = true,
+                            ContinueOnError = false
+                        },
+                        NextStepId = step2Id
+                    },
+                    new()
+                    {
+                        StepId = step2Id,
+                        Order = 1,
+                        Name = "Validate Results",
+                        Position = new System.Windows.Point(50, 200),
+                        HasValidPosition = true,
+                        PromptTemplate = "Validate these results:\n\n{{processed}}",
+                        IsEndStep = true,
+                        ErrorHandling = new ErrorHandlingConfig
+                        {
+                            MaxRetries = 2,
+                            ContinueOnError = true
+                        }
+                    }
+                }
+            }
+        };
+    }
+    
+    #endregion
 
     public async Task<List<Workflow>> GetCustomWorkflowsAsync()
     {

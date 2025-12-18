@@ -264,14 +264,53 @@
                                  Value="0"
                                  Maximum="100"/>
                     
-                    <!-- Step Indicators -->
-                    <ItemsControl x:Name="StepIndicators" Margin="0,12,0,0">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                    </ItemsControl>
+                    <!-- Visual Execution View (only for custom workflows, collapsed by default) -->
+                    <Expander x:Name="VisualExecutionExpander"
+                              Margin="0,12,0,0"
+                              IsExpanded="False"
+                              Visibility="Collapsed">
+                        <Expander.Header>
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="GraphOutline" 
+                                                         VerticalAlignment="Center"
+                                                         Foreground="{DynamicResource MaterialDesignBodyLight}"/>
+                                <TextBlock Text="Visual Execution Flow" 
+                                           FontSize="12"
+                                           Foreground="{DynamicResource MaterialDesignBodyLight}"
+                                           VerticalAlignment="Center"
+                                           Margin="8,0,0,0"/>
+                            </StackPanel>
+                        </Expander.Header>
+                        <Border x:Name="VisualExecutionView"
+                                Background="{DynamicResource MaterialDesignCardBackground}"
+                                BorderBrush="{DynamicResource MaterialDesignDivider}"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="8"
+                                MaxHeight="300">
+                            <ScrollViewer HorizontalScrollBarVisibility="Auto" 
+                                          VerticalScrollBarVisibility="Auto">
+                                <Canvas x:Name="ExecutionCanvas" 
+                                        MinHeight="200"
+                                        MinWidth="600"
+                                        Background="Transparent"/>
+                            </ScrollViewer>
+                        </Border>
+                    </Expander>
+                    
+                    <!-- Step Indicators (Legacy) -->
+                    <Expander Header="Step Details" 
+                              Foreground="{DynamicResource MaterialDesignBody}"
+                              Margin="0,8,0,0" 
+                              IsExpanded="False">
+                        <ItemsControl x:Name="StepIndicators" Margin="0,8,0,0">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                        </ItemsControl>
+                    </Expander>
                 </StackPanel>
                 
                 <!-- Results Section -->
@@ -307,7 +346,32 @@
                     <TabControl x:Name="ResultTabs" 
                                 Grid.Row="1" 
                                 Margin="0,8,0,0"
-                                Style="{StaticResource MaterialDesignFilledTabControl}"/>
+                                Style="{StaticResource MaterialDesignFilledTabControl}">
+                        <TabControl.Resources>
+                            <Style TargetType="TabPanel">
+                                <Setter Property="HorizontalAlignment" Value="Left"/>
+                            </Style>
+                        </TabControl.Resources>
+                        <TabControl.Template>
+                            <ControlTemplate TargetType="TabControl">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <ScrollViewer Grid.Row="0" 
+                                                  HorizontalScrollBarVisibility="Auto" 
+                                                  VerticalScrollBarVisibility="Disabled"
+                                                  Background="{DynamicResource MaterialDesignCardBackground}">
+                                        <TabPanel IsItemsHost="True" 
+                                                  Background="Transparent"/>
+                                    </ScrollViewer>
+                                    <ContentPresenter Grid.Row="1" 
+                                                      ContentSource="SelectedContent"/>
+                                </Grid>
+                            </ControlTemplate>
+                        </TabControl.Template>
+                    </TabControl>
                 </Grid>
             </Grid>
         </Grid>

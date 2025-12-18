@@ -1,0 +1,8 @@
+name = "promptbox-ratings-api"
+main = "src/index.ts"
+compatibility_date = "2025-12-12"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "promptbox-ratings"
+database_id = "24346a61-552c-414a-89b3-c6f03af60beb"

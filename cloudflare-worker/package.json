@@ -1,0 +1,17 @@
+{
+  "name": "promptbox-ratings-api",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker API for PromptBox community ratings",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:create": "wrangler d1 create promptbox-ratings",
+    "db:init": "wrangler d1 execute promptbox-ratings --file=./schema.sql"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "typescript": "^5.3.0",
+    "wrangler": "^3.91.0"
+  }
+}

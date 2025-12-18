@@ -489,6 +489,91 @@ Users can create, edit, save, and delete their own custom workflows:
 - **Variable Support**: Use `{{input}}`, `{{previous_output}}`, `{{step1}}`, etc. in templates
 - Custom workflows are stored in the local database and persist across sessions
 
+#### Visual Workflow Designer
+A powerful drag-and-drop visual designer for creating complex workflows with conditional logic:
+
+**Node Types**
+- **Standard**: Regular prompt execution step
+- **Conditional**: Branch based on output evaluation (if/else logic)
+- **Loop**: Repeat execution until exit condition is met
+- **Parallel**:
+
+**Visual Canvas Features**
+- **Drag & Drop**: Drag nodes to position them on the canvas
+- **Zoom**: 50%-200% zoom with slider or Ctrl+Mouse Wheel
+- **Pan**: Middle mouse button or Ctrl+Drag to pan the canvas
+- **Snap to Grid**: Optional 16px grid snapping for alignment
+- **Auto Layout**: Automatically arrange nodes in hierarchical layout
+- **Minimap**: Overview of entire workflow with viewport indicator
+- **Connection Drawing**: Click output connector, then click target node to connect
+
+**Keyboard Shortcuts**
+- `Ctrl+N`: Add new standard step
+- `Ctrl+D`: Duplicate selected node
+- `Ctrl+C`: Copy selected node
+- `Ctrl+V`: Paste copied node
+- `Ctrl+Z`: Undo last action
+- `Ctrl+Y`: Redo last undone action
+- `Ctrl+L`: Auto layout nodes
+- `Delete`: Delete selected node
+- `Escape`: Cancel connection mode
+
+**Undo/Redo System**
+- Up to 50 undo steps
+- Full state restoration
+- Visual indicator showing available undo/redo actions
+
+**Export Options**
+- **Export as PNG**: Save workflow diagram as image
+- **Export as JSON**: Save workflow with all settings for sharing
+- **Import from JSON**: Load workflow from JSON file
+
+**Conditional Logic**
+- **Condition Types**: Output Contains, Output Matches, Regex Match, Success
+- **Comparison Operators**: Equals, Not Equals, Contains, Greater Than, Less Than
+- **Multiple Branches**: Create multiple conditional paths from a single node
+- **Branch Labels**: Name each branch for clarity
+
+**Loop Configuration**
+- **Max Iterations**: Set maximum loop count (default 10)
+- **Loop Variable**: Access iteration count in prompts
+- **Exit Condition**: Define when to exit the loop
+- **Exit Condition Types**: Output Contains, Output Matches, Regex, Success
+
+**Error Handling**
+- **Max Retries**: Retry failed steps (0-5 attempts)
+- **Retry Delay**: Configurable delay between retries (ms)
+- **Exponential Backoff**: Increase delay with each retry
+- **Continue on Error**: Option to continue workflow despite failures
+- **Fallback Steps**: Redirect to alternative step on failure
+
+**Properties Panel**
+- Edit step name, description, and prompt template
+- Configure step type (Standard, Conditional, Loop)
+- Set output variable name for referencing in later steps
+- Configure loop settings and exit conditions
+- Configure error handling and retry logic
+- Mark steps as Start or End steps
+
+**Workflow Templates**
+- **Code Review with Conditional Severity**: Branches based on issue severity
+- **Iterative Content Refinement**: Loops until quality threshold met
+- **Error-Resilient Processing**: Automatic retry with exponential backoff
+
+**Visual Execution View**
+When running workflows, see real-time visual execution:
+- Mini workflow diagram showing all nodes
+- Color-coded status (gray=pending, orange=running, green=success, red=failed)
+- Animated transitions between steps
+- Loop iteration counters displayed on loop nodes
+
+**Validation**
+- Validates workflow structure before saving
+- Checks for start step presence
+- Detects unreachable steps
+- Validates conditional branches have targets
+- Ensures loop steps have exit conditions
+
 #### How to Use
 1. Click "Workflows" button in the left sidebar
 2. Select a workflow from the list (or create a custom one)

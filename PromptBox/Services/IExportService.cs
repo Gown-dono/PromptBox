@@ -30,4 +30,9 @@ public interface IExportService
 
     // Prompt comparison export
     Task ExportPromptComparisonReportAsync(PromptComparisonSession session, List<ComparisonResult> results, string filePath);
+    
+    // Workflow visual export
+    Task ExportWorkflowAsPngAsync(Workflow workflow, string filePath);
+    Task ExportSingleWorkflowAsJsonAsync(Workflow workflow, string filePath);
+    Task<Workflow?> ImportSingleWorkflowFromJsonAsync(string filePath);
 }

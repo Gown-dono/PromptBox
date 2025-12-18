@@ -22,6 +22,11 @@ public partial class PromptBuilderDialog : Window
     private readonly IAIService _aiService;
     private readonly ISecureStorageService _secureStorage;
     private readonly IPromptSuggestionService _suggestionService;
+    private readonly IGitContextService _gitService;
+    private readonly IDatabaseContextService _dbService;
+    private readonly IApiContextService _apiService;
+    private readonly IWebScrapingService _webService;
+    private readonly IContextTemplateService _templateService;
     private CancellationTokenSource? _cancellationTokenSource;
     private List<AIModel> _availableModels = new();
     private string _currentResponse = string.Empty;
@@ -88,12 +93,27 @@ public partial class PromptBuilderDialog : Window
     public string? ResultPrompt { get; private set; }
     public string? InitialPrompt { get; set; }
 
-    public PromptBuilderDialog(IAIService aiService, ISecureStorageService secureStorage, IPromptSuggestionService? suggestionService = null)
+    public PromptBuilderDialog(
+        IAIService aiService,
+        ISecureStorageService secureStorage,
+        IPromptSuggestionService? suggestionService = null,
+        IGitContextService? gitService = null,
+        IDatabaseContextService? dbService = null,
+        IApiContextService? apiService = null,
+        IWebScrapingService? webService = null,
+        IContextTemplateService? templateService = null,
+        IDatabaseService? databaseService = null)
     {
         InitializeComponent();
         _aiService = aiService;
         _secureStorage = secureStorage;
         _suggestionService = suggestionService ?? new PromptSuggestionService();
+        _gitService = gitService ?? new GitContextService();
+        _dbService = dbService ?? new DatabaseContextService();
+        _apiService = apiService ?? new ApiContextService();
+        _webService = webService ?? new WebScrapingService();
+        var dbSvc = databaseService ?? new DatabaseService();
+        _templateService = templateService ?? new ContextTemplateService(dbSvc);
         
         _promptStarters = _suggestionService.GetPromptStarters();
         
@@ -558,6 +578,11 @@ public partial class PromptBuilderDialog : Window
     
     private async void OpenContextDialog_Click(object sender, RoutedEventArgs e)
     {
+        await ShowContextDialogAsync();
+    }
+
+    private async Task ShowContextDialogAsync()
+    {
         // Create the context items list for the dialog
         var contextListBox = new ListBox
         {
@@ -566,9 +591,9 @@ public partial class PromptBuilderDialog : Window
             Background = Brushes.Transparent,
             ItemsSource = _contextItems
         };
-        
+
         contextListBox.ItemTemplate = CreateContextItemTemplate();
-        
+
         // Note input area
         var noteInput = new TextBox
         {
@@ -580,20 +605,19 @@ public partial class PromptBuilderDialog : Window
             Margin = new Thickness(0, 0, 8, 0)
         };
         HintAssist.SetHint(noteInput, "Type a note here...");
-        
-        var addNoteFromInputBtn = new Button 
-        { 
-            Content = "Add", 
+
+        var addNoteFromInputBtn = new Button
+        {
+            Content = "Add",
             Style = (Style)FindResource("MaterialDesignRaisedButton"),
             VerticalAlignment = VerticalAlignment.Bottom,
             Width = 60
         };
-        
+
         addNoteFromInputBtn.Click += (s, args) =>
         {
             if (!string.IsNullOrWhiteSpace(noteInput.Text))
             {
-                // Safely compute display name
                 var lines = noteInput.Text.Split('\n');
                 var firstLine = lines.Length > 0 ? lines[0].Trim() : string.Empty;
                 string displayName;
@@ -609,7 +633,7 @@ public partial class PromptBuilderDialog : Window
                 {
                     displayName = firstLine;
                 }
-                
+
                 var item = new ContextItem
                 {
                     Type = ContextItemType.Note,
@@ -624,7 +648,7 @@ public partial class PromptBuilderDialog : Window
                 ShowMessage("✓ Added note");
             }
         };
-        
+
         var notePanel = new Grid { Margin = new Thickness(0, 0, 0, 12) };
         notePanel.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         notePanel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -632,24 +656,60 @@ public partial class PromptBuilderDialog : Window
         Grid.SetColumn(addNoteFromInputBtn, 1);
         notePanel.Children.Add(noteInput);
         notePanel.Children.Add(addNoteFromInputBtn);
-        
+
         // Action buttons
         var addFilesBtn = new Button { Content = "Add Files", Style = (Style)FindResource("MaterialDesignRaisedButton"), Margin = new Thickness(0, 0, 4, 4) };
         var addFolderBtn = new Button { Content = "Add Folder", Style = (Style)FindResource("MaterialDesignRaisedButton"), Margin = new Thickness(0, 0, 4, 4) };
         var addClipboardBtn = new Button { Content = "From Clipboard", Style = (Style)FindResource("MaterialDesignRaisedButton"), Margin = new Thickness(0, 0, 4, 4) };
         var clearAllBtn = new Button { Content = "Clear All", Style = (Style)FindResource("MaterialDesignOutlinedButton"), Foreground = new SolidColorBrush(Color.FromRgb(211, 47, 47)), BorderBrush = new SolidColorBrush(Color.FromRgb(211, 47, 47)), Margin = new Thickness(0, 0, 4, 4) };
-        
+
         addFilesBtn.Click += (s, args) => { AddFiles_Click(s, args); contextListBox.Items.Refresh(); };
         addFolderBtn.Click += (s, args) => { AddFolder_Click(s, args); };
         addClipboardBtn.Click += (s, args) => { AddClipboard_Click(s, args); contextListBox.Items.Refresh(); };
         clearAllBtn.Click += (s, args) => { ClearContext_Click(s, args); contextListBox.Items.Refresh(); };
-        
+
+        // New context source buttons
+        var addGitBtn = new Button { Content = "Git Repository", Style = (Style)FindResource("MaterialDesignRaisedButton"), Margin = new Thickness(0, 0, 4, 4) };
+        var addDatabaseBtn = new Button { Content = "Database Query", Style = (Style)FindResource("MaterialDesignRaisedButton"), Margin = new Thickness(0, 0, 4, 4) };
+        var addApiBtn = new Button { Content = "API Endpoint", Style = (Style)FindResource("MaterialDesignRaisedButton"), Margin = new Thickness(0, 0, 4, 4) };
+        var addWebBtn = new Button { Content = "Web Page", Style = (Style)FindResource("MaterialDesignRaisedButton"), Margin = new Thickness(0, 0, 4, 4) };
+        var saveTemplateBtn = new Button { Content = "Save Template", Style = (Style)FindResource("MaterialDesignOutlinedButton"), Margin = new Thickness(0, 0, 4, 4) };
+        var loadTemplateBtn = new Button { Content = "Load Template", Style = (Style)FindResource("MaterialDesignOutlinedButton"), Margin = new Thickness(0, 0, 4, 4) };
+
+        addGitBtn.Click += (s, args) => { AddGitRepository_Click(s, args); contextListBox.Items.Refresh(); };
+        addDatabaseBtn.Click += async (s, args) =>
+        {
+            DialogHost.Close("PromptBuilderDialog");
+            await AddDatabaseQueryAsync();
+            await ShowContextDialogAsync();
+        };
+        addApiBtn.Click += async (s, args) =>
+        {
+            DialogHost.Close("PromptBuilderDialog");
+            await AddApiEndpointAsync();
+            await ShowContextDialogAsync();
+        };
+        addWebBtn.Click += async (s, args) =>
+        {
+            DialogHost.Close("PromptBuilderDialog");
+            await AddWebPageAsync();
+            await ShowContextDialogAsync();
+        };
+        saveTemplateBtn.Click += (s, args) => { SaveContextTemplate_Click(s, args); };
+        loadTemplateBtn.Click += (s, args) => { LoadContextTemplate_Click(s, args); contextListBox.Items.Refresh(); };
+
         var buttonsPanel = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) };
         buttonsPanel.Children.Add(addFilesBtn);
         buttonsPanel.Children.Add(addFolderBtn);
         buttonsPanel.Children.Add(addClipboardBtn);
+        buttonsPanel.Children.Add(addGitBtn);
+        buttonsPanel.Children.Add(addDatabaseBtn);
+        buttonsPanel.Children.Add(addApiBtn);
+        buttonsPanel.Children.Add(addWebBtn);
+        buttonsPanel.Children.Add(saveTemplateBtn);
+        buttonsPanel.Children.Add(loadTemplateBtn);
         buttonsPanel.Children.Add(clearAllBtn);
-        
+
         var closeButton = new Button
         {
             Content = "Close",
@@ -658,7 +718,7 @@ public partial class PromptBuilderDialog : Window
             HorizontalAlignment = HorizontalAlignment.Right,
             Margin = new Thickness(0, 12, 0, 0)
         };
-        
+
         var mainPanel = new StackPanel { Margin = new Thickness(16), MinWidth = 500 };
         mainPanel.Children.Add(new TextBlock
         {
@@ -701,7 +761,7 @@ public partial class PromptBuilderDialog : Window
             MinHeight = 80
         });
         mainPanel.Children.Add(closeButton);
-        
+
         await DialogHost.Show(mainPanel, "PromptBuilderDialog");
         UpdateContextBadge();
     }
@@ -943,7 +1003,914 @@ public partial class PromptBuilderDialog : Window
         ShowMessage("✓ Cleared all context items");
     }
     
-    private string FormatFileSize(long bytes)
+    private async void AddGitRepository_Click(object sender, RoutedEventArgs e)
+    {
+        var folderDialog = new OpenFileDialog
+        {
+            Title = "Select any file in the Git repository",
+            CheckFileExists = true
+        };
+        
+        if (folderDialog.ShowDialog() == true)
+        {
+            var repoPath = Path.GetDirectoryName(folderDialog.FileName);
+            if (string.IsNullOrEmpty(repoPath)) return;
+            
+            await RunWithLoadingAsync(async () =>
+            {
+                try
+                {
+                    var repoInfo = await _gitService.GetRepositoryInfoAsync(repoPath);
+                    var commitHistory = await _gitService.GetCommitHistoryAsync(repoPath, 10);
+                    var branchInfo = await _gitService.GetBranchInfoAsync(repoPath);
+                    
+                    var content = $"{repoInfo}\n\n{branchInfo}\n\n{commitHistory}";
+                    
+                    var item = new ContextItem
+                    {
+                        Type = ContextItemType.GitRepository,
+                        DisplayName = $"Git: {Path.GetFileName(repoPath)}",
+                        FullPath = repoPath,
+                        RepositoryPath = repoPath,
+                        Content = content,
+                        SizeText = "Git repo"
+                    };
+                    
+                    await Dispatcher.InvokeAsync(() => _contextItems.Add(item));
+                    ShowMessage($"✓ Added Git repository: {Path.GetFileName(repoPath)}");
+                }
+                catch (Exception ex)
+                {
+                    ShowMessage($"❌ Error reading Git repository: {ex.Message}");
+                }
+            });
+        }
+    }
+
+    private async void AddDatabaseQuery_Click(object sender, RoutedEventArgs e)
+    {
+        var connectionStringInput = new TextBox
+        {
+            AcceptsReturn = false,
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        };
+        HintAssist.SetHint(connectionStringInput, "Connection string");
+        
+        var dbTypeCombo = new ComboBox
+        {
+            ItemsSource = _dbService.GetSupportedDatabaseTypes(),
+            SelectedIndex = 0,
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        };
+        
+        var queryInput = new TextBox
+        {
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            Height = 100,
+            FontFamily = new FontFamily("Consolas"),
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        };
+        HintAssist.SetHint(queryInput, "SQL query");
+        
+        var testButton = new Button
+        {
+            Content = "Test Connection",
+            Style = (Style)FindResource("MaterialDesignOutlinedButton"),
+            Margin = new Thickness(0, 0, 8, 8)
+        };
+        
+        testButton.Click += async (s, args) =>
+        {
+            var isValid = await _dbService.TestConnectionAsync(connectionStringInput.Text, dbTypeCombo.SelectedItem?.ToString() ?? "SqlServer");
+            ShowMessage(isValid ? "✓ Connection successful" : "❌ Connection failed");
+        };
+        
+        var executeButton = new Button
+        {
+            Content = "Execute & Add",
+            Style = (Style)FindResource("MaterialDesignRaisedButton"),
+            Command = DialogHost.CloseDialogCommand,
+            CommandParameter = true
+        };
+        
+        var cancelButton = new Button
+        {
+            Content = "Cancel",
+            Style = (Style)FindResource("MaterialDesignOutlinedButton"),
+            Command = DialogHost.CloseDialogCommand,
+            CommandParameter = false,
+            Margin = new Thickness(8, 0, 0, 0)
+        };
+        
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        buttonPanel.Children.Add(executeButton);
+        buttonPanel.Children.Add(cancelButton);
+        
+        var dialogContent = new StackPanel { Margin = new Thickness(16), MinWidth = 500 };
+        dialogContent.Children.Add(new TextBlock { Text = "Database Query", FontSize = 18, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 16), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(new TextBlock { Text = "Connection String:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(connectionStringInput);
+        dialogContent.Children.Add(new TextBlock { Text = "Database Type:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(dbTypeCombo);
+        dialogContent.Children.Add(new TextBlock { Text = "SQL Query:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(queryInput);
+        dialogContent.Children.Add(testButton);
+        dialogContent.Children.Add(buttonPanel);
+        
+        var result = await DialogHost.Show(dialogContent, "PromptBuilderDialog");
+        
+        if (result is bool success && success)
+        {
+            await RunWithLoadingAsync(async () =>
+            {
+                try
+                {
+                    var queryResult = await _dbService.ExecuteQueryAsync(
+                        connectionStringInput.Text,
+                        queryInput.Text,
+                        dbTypeCombo.SelectedItem?.ToString() ?? "SqlServer"
+                    );
+                    
+                    var displayName = queryInput.Text.Length > 30 
+                        ? $"DB: {queryInput.Text.Substring(0, 30)}..." 
+                        : $"DB: {queryInput.Text}";
+                    
+                    var item = new ContextItem
+                    {
+                        Type = ContextItemType.DatabaseQuery,
+                        DisplayName = displayName,
+                        FullPath = "Database query result",
+                        ConnectionString = connectionStringInput.Text,
+                        Query = queryInput.Text,
+                        Content = queryResult,
+                        SizeText = "Query result"
+                    };
+                    
+                    await Dispatcher.InvokeAsync(() => _contextItems.Add(item));
+                    ShowMessage("✓ Added database query result");
+                }
+                catch (Exception ex)
+                {
+                    ShowMessage($"❌ Error executing query: {ex.Message}");
+                }
+            });
+        }
+    }
+
+    private async void AddApiEndpoint_Click(object sender, RoutedEventArgs e)
+    {
+        var urlInput = new TextBox
+        {
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        };
+        HintAssist.SetHint(urlInput, "https://api.example.com/endpoint");
+        
+        var methodCombo = new ComboBox
+        {
+            ItemsSource = new[] { "GET", "POST", "PUT", "DELETE" },
+            SelectedIndex = 0,
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        };
+        
+        var headersInput = new TextBox
+        {
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            Height = 60,
+            FontFamily = new FontFamily("Consolas"),
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        };
+        HintAssist.SetHint(headersInput, "Headers (key: value, one per line)");
+        
+        var bodyInput = new TextBox
+        {
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            Height = 80,
+            FontFamily = new FontFamily("Consolas"),
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        };
+        HintAssist.SetHint(bodyInput, "Request body (JSON)");
+        
+        var fetchButton = new Button
+        {
+            Content = "Fetch & Add",
+            Style = (Style)FindResource("MaterialDesignRaisedButton"),
+            Command = DialogHost.CloseDialogCommand,
+            CommandParameter = true
+        };
+        
+        var cancelButton = new Button
+        {
+            Content = "Cancel",
+            Style = (Style)FindResource("MaterialDesignOutlinedButton"),
+            Command = DialogHost.CloseDialogCommand,
+            CommandParameter = false,
+            Margin = new Thickness(8, 0, 0, 0)
+        };
+        
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        buttonPanel.Children.Add(fetchButton);
+        buttonPanel.Children.Add(cancelButton);
+        
+        var dialogContent = new StackPanel { Margin = new Thickness(16), MinWidth = 500 };
+        dialogContent.Children.Add(new TextBlock { Text = "API Endpoint", FontSize = 18, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 16), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(new TextBlock { Text = "URL:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(urlInput);
+        dialogContent.Children.Add(new TextBlock { Text = "Method:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(methodCombo);
+        dialogContent.Children.Add(new TextBlock { Text = "Headers (optional):", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(headersInput);
+        dialogContent.Children.Add(new TextBlock { Text = "Body (optional):", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(bodyInput);
+        dialogContent.Children.Add(buttonPanel);
+        
+        var result = await DialogHost.Show(dialogContent, "PromptBuilderDialog");
+        
+        if (result is bool success && success)
+        {
+            await RunWithLoadingAsync(async () =>
+            {
+                try
+                {
+                    var headers = new Dictionary<string, string>();
+                    if (!string.IsNullOrWhiteSpace(headersInput.Text))
+                    {
+                        foreach (var line in headersInput.Text.Split('\n'))
+                        {
+                            var parts = line.Split(':', 2);
+                            if (parts.Length == 2)
+                                headers[parts[0].Trim()] = parts[1].Trim();
+                        }
+                    }
+                    
+                    if (!Uri.TryCreate(urlInput.Text, UriKind.Absolute, out var uri))
+                    {
+                        ShowMessage("❌ Error: Invalid URL format");
+                        return;
+                    }
+
+                    var apiResult = await _apiService.FetchApiDataAsync(
+                        urlInput.Text,
+                        methodCombo.SelectedItem?.ToString() ?? "GET",
+                        headers,
+                        bodyInput.Text
+                    );
+
+                    var item = new ContextItem
+                    {
+                        Type = ContextItemType.ApiEndpoint,
+                        DisplayName = $"API: {uri.Host}",
+                        FullPath = urlInput.Text,
+                        Url = urlInput.Text,
+                        HttpMethod = methodCombo.SelectedItem?.ToString(),
+                        Headers = headers,
+                        Content = apiResult,
+                        SizeText = "API response"
+                    };
+
+                    await Dispatcher.InvokeAsync(() => _contextItems.Add(item));
+                    ShowMessage("✓ Added API endpoint data");
+                }
+                catch (Exception ex)
+                {
+                    ShowMessage($"❌ Error fetching API data: {ex.Message}");
+                }
+            });
+        }
+    }
+
+    private async void AddWebPage_Click(object sender, RoutedEventArgs e)
+    {
+        var urlInput = new TextBox
+        {
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        };
+        HintAssist.SetHint(urlInput, "https://example.com");
+        
+        var includeHtmlCheckbox = new CheckBox
+        {
+            Content = "Include raw HTML",
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        };
+        
+        var scrapeButton = new Button
+        {
+            Content = "Scrape & Add",
+            Style = (Style)FindResource("MaterialDesignRaisedButton"),
+            Command = DialogHost.CloseDialogCommand,
+            CommandParameter = true
+        };
+        
+        var cancelButton = new Button
+        {
+            Content = "Cancel",
+            Style = (Style)FindResource("MaterialDesignOutlinedButton"),
+            Command = DialogHost.CloseDialogCommand,
+            CommandParameter = false,
+            Margin = new Thickness(8, 0, 0, 0)
+        };
+        
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        buttonPanel.Children.Add(scrapeButton);
+        buttonPanel.Children.Add(cancelButton);
+        
+        var dialogContent = new StackPanel { Margin = new Thickness(16), MinWidth = 500 };
+        dialogContent.Children.Add(new TextBlock { Text = "Web Page Scraping", FontSize = 18, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 16), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(new TextBlock { Text = "URL:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(urlInput);
+        dialogContent.Children.Add(includeHtmlCheckbox);
+        dialogContent.Children.Add(buttonPanel);
+        
+        var result = await DialogHost.Show(dialogContent, "PromptBuilderDialog");
+        
+        if (result is bool success && success)
+        {
+            await RunWithLoadingAsync(async () =>
+            {
+                try
+                {
+                    if (!Uri.TryCreate(urlInput.Text, UriKind.Absolute, out var uri))
+                    {
+                        ShowMessage("❌ Error: Invalid URL format");
+                        return;
+                    }
+
+                    var webContent = await _webService.ScrapeWebPageAsync(
+                        urlInput.Text,
+                        includeHtmlCheckbox.IsChecked ?? false
+                    );
+
+                    var item = new ContextItem
+                    {
+                        Type = ContextItemType.WebPage,
+                        DisplayName = $"Web: {uri.Host}",
+                        FullPath = urlInput.Text,
+                        Url = urlInput.Text,
+                        Content = webContent,
+                        SizeText = "Web page"
+                    };
+
+                    await Dispatcher.InvokeAsync(() => _contextItems.Add(item));
+                    ShowMessage("✓ Added web page content");
+                }
+                catch (Exception ex)
+                {
+                    ShowMessage($"❌ Error scraping web page: {ex.Message}");
+                }
+            });
+        }
+    }
+
+    // Async versions for nested dialog support
+    private async Task AddDatabaseQueryAsync()
+    {
+        var connectionStringInput = new TextBox
+        {
+            AcceptsReturn = false,
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        };
+        HintAssist.SetHint(connectionStringInput, "Connection string");
+        
+        var dbTypeCombo = new ComboBox
+        {
+            ItemsSource = _dbService.GetSupportedDatabaseTypes(),
+            SelectedIndex = 0,
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        };
+        
+        var queryInput = new TextBox
+        {
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            Height = 100,
+            FontFamily = new FontFamily("Consolas"),
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        };
+        HintAssist.SetHint(queryInput, "SQL query");
+        
+        var testButton = new Button
+        {
+            Content = "Test Connection",
+            Style = (Style)FindResource("MaterialDesignOutlinedButton"),
+            Margin = new Thickness(0, 0, 8, 8)
+        };
+        
+        testButton.Click += async (s, args) =>
+        {
+            var isValid = await _dbService.TestConnectionAsync(connectionStringInput.Text, dbTypeCombo.SelectedItem?.ToString() ?? "SqlServer");
+            ShowMessage(isValid ? "✓ Connection successful" : "❌ Connection failed");
+        };
+        
+        var executeButton = new Button
+        {
+            Content = "Execute & Add",
+            Style = (Style)FindResource("MaterialDesignRaisedButton"),
+            Command = DialogHost.CloseDialogCommand,
+            CommandParameter = true
+        };
+        
+        var cancelButton = new Button
+        {
+            Content = "Cancel",
+            Style = (Style)FindResource("MaterialDesignOutlinedButton"),
+            Command = DialogHost.CloseDialogCommand,
+            CommandParameter = false,
+            Margin = new Thickness(8, 0, 0, 0)
+        };
+        
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        buttonPanel.Children.Add(executeButton);
+        buttonPanel.Children.Add(cancelButton);
+        
+        var dialogContent = new StackPanel { Margin = new Thickness(16), MinWidth = 500 };
+        dialogContent.Children.Add(new TextBlock { Text = "Database Query", FontSize = 18, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 16), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(new TextBlock { Text = "Connection String:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(connectionStringInput);
+        dialogContent.Children.Add(new TextBlock { Text = "Database Type:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(dbTypeCombo);
+        dialogContent.Children.Add(new TextBlock { Text = "SQL Query:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(queryInput);
+        dialogContent.Children.Add(testButton);
+        dialogContent.Children.Add(buttonPanel);
+        
+        var result = await DialogHost.Show(dialogContent, "PromptBuilderDialog");
+        
+        if (result is bool success && success)
+        {
+            try
+            {
+                ShowMessage("Executing query...");
+                var queryResult = await _dbService.ExecuteQueryAsync(
+                    connectionStringInput.Text,
+                    queryInput.Text,
+                    dbTypeCombo.SelectedItem?.ToString() ?? "SqlServer"
+                );
+                
+                var displayName = queryInput.Text.Length > 30 
+                    ? $"DB: {queryInput.Text.Substring(0, 30)}..." 
+                    : $"DB: {queryInput.Text}";
+                
+                var item = new ContextItem
+                {
+                    Type = ContextItemType.DatabaseQuery,
+                    DisplayName = displayName,
+                    FullPath = "Database query result",
+                    ConnectionString = connectionStringInput.Text,
+                    Query = queryInput.Text,
+                    Content = queryResult,
+                    SizeText = "Query result"
+                };
+                
+                _contextItems.Add(item);
+                ShowMessage("✓ Added database query result");
+            }
+            catch (Exception ex)
+            {
+                ShowMessage($"❌ Error executing query: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task AddApiEndpointAsync()
+    {
+        var urlInput = new TextBox
+        {
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        };
+        HintAssist.SetHint(urlInput, "https://api.example.com/endpoint");
+        
+        var methodCombo = new ComboBox
+        {
+            ItemsSource = new[] { "GET", "POST", "PUT", "DELETE" },
+            SelectedIndex = 0,
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        };
+        
+        var headersInput = new TextBox
+        {
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            Height = 60,
+            FontFamily = new FontFamily("Consolas"),
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        };
+        HintAssist.SetHint(headersInput, "Headers (key: value, one per line)");
+        
+        var bodyInput = new TextBox
+        {
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            Height = 80,
+            FontFamily = new FontFamily("Consolas"),
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        };
+        HintAssist.SetHint(bodyInput, "Request body (JSON)");
+        
+        var fetchButton = new Button
+        {
+            Content = "Fetch & Add",
+            Style = (Style)FindResource("MaterialDesignRaisedButton"),
+            Command = DialogHost.CloseDialogCommand,
+            CommandParameter = true
+        };
+        
+        var cancelButton = new Button
+        {
+            Content = "Cancel",
+            Style = (Style)FindResource("MaterialDesignOutlinedButton"),
+            Command = DialogHost.CloseDialogCommand,
+            CommandParameter = false,
+            Margin = new Thickness(8, 0, 0, 0)
+        };
+        
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        buttonPanel.Children.Add(fetchButton);
+        buttonPanel.Children.Add(cancelButton);
+        
+        var dialogContent = new StackPanel { Margin = new Thickness(16), MinWidth = 500 };
+        dialogContent.Children.Add(new TextBlock { Text = "API Endpoint", FontSize = 18, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 16), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(new TextBlock { Text = "URL:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(urlInput);
+        dialogContent.Children.Add(new TextBlock { Text = "Method:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(methodCombo);
+        dialogContent.Children.Add(new TextBlock { Text = "Headers (optional):", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(headersInput);
+        dialogContent.Children.Add(new TextBlock { Text = "Body (optional):", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(bodyInput);
+        dialogContent.Children.Add(buttonPanel);
+        
+        var result = await DialogHost.Show(dialogContent, "PromptBuilderDialog");
+        
+        if (result is bool success && success)
+        {
+            try
+            {
+                ShowMessage("Fetching API data...");
+                var headers = new Dictionary<string, string>();
+                if (!string.IsNullOrWhiteSpace(headersInput.Text))
+                {
+                    foreach (var line in headersInput.Text.Split('\n'))
+                    {
+                        var parts = line.Split(':', 2);
+                        if (parts.Length == 2)
+                            headers[parts[0].Trim()] = parts[1].Trim();
+                    }
+                }
+                
+                if (!Uri.TryCreate(urlInput.Text, UriKind.Absolute, out var uri))
+                {
+                    ShowMessage("❌ Error: Invalid URL format");
+                    return;
+                }
+
+                var apiResult = await _apiService.FetchApiDataAsync(
+                    urlInput.Text,
+                    methodCombo.SelectedItem?.ToString() ?? "GET",
+                    headers,
+                    bodyInput.Text
+                );
+
+                var item = new ContextItem
+                {
+                    Type = ContextItemType.ApiEndpoint,
+                    DisplayName = $"API: {uri.Host}",
+                    FullPath = urlInput.Text,
+                    Url = urlInput.Text,
+                    HttpMethod = methodCombo.SelectedItem?.ToString(),
+                    Headers = headers,
+                    Content = apiResult,
+                    SizeText = "API response"
+                };
+
+                _contextItems.Add(item);
+                ShowMessage("✓ Added API endpoint data");
+            }
+            catch (Exception ex)
+            {
+                ShowMessage($"❌ Error fetching API data: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task AddWebPageAsync()
+    {
+        var urlInput = new TextBox
+        {
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        };
+        HintAssist.SetHint(urlInput, "https://example.com");
+        
+        var includeHtmlCheckbox = new CheckBox
+        {
+            Content = "Include raw HTML",
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        };
+        
+        var scrapeButton = new Button
+        {
+            Content = "Scrape & Add",
+            Style = (Style)FindResource("MaterialDesignRaisedButton"),
+            Command = DialogHost.CloseDialogCommand,
+            CommandParameter = true
+        };
+        
+        var cancelButton = new Button
+        {
+            Content = "Cancel",
+            Style = (Style)FindResource("MaterialDesignOutlinedButton"),
+            Command = DialogHost.CloseDialogCommand,
+            CommandParameter = false,
+            Margin = new Thickness(8, 0, 0, 0)
+        };
+        
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        buttonPanel.Children.Add(scrapeButton);
+        buttonPanel.Children.Add(cancelButton);
+        
+        var dialogContent = new StackPanel { Margin = new Thickness(16), MinWidth = 500 };
+        dialogContent.Children.Add(new TextBlock { Text = "Web Page Scraping", FontSize = 18, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 16), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(new TextBlock { Text = "URL:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(urlInput);
+        dialogContent.Children.Add(includeHtmlCheckbox);
+        dialogContent.Children.Add(buttonPanel);
+        
+        var result = await DialogHost.Show(dialogContent, "PromptBuilderDialog");
+        
+        if (result is bool success && success)
+        {
+            try
+            {
+                if (!Uri.TryCreate(urlInput.Text, UriKind.Absolute, out var uri))
+                {
+                    ShowMessage("❌ Error: Invalid URL format");
+                    return;
+                }
+
+                ShowMessage("Scraping web page...");
+                var webContent = await _webService.ScrapeWebPageAsync(
+                    urlInput.Text,
+                    includeHtmlCheckbox.IsChecked ?? false
+                );
+
+                var item = new ContextItem
+                {
+                    Type = ContextItemType.WebPage,
+                    DisplayName = $"Web: {uri.Host}",
+                    FullPath = urlInput.Text,
+                    Url = urlInput.Text,
+                    Content = webContent,
+                    SizeText = "Web page"
+                };
+
+                _contextItems.Add(item);
+                ShowMessage("✓ Added web page content");
+            }
+            catch (Exception ex)
+            {
+                ShowMessage($"❌ Error scraping web page: {ex.Message}");
+            }
+        }
+    }
+
+
+    private async void SaveContextTemplate_Click(object sender, RoutedEventArgs e)
+    {
+        if (_contextItems.Count == 0)
+        {
+            ShowMessage("⚠️ No context items to save");
+            return;
+        }
+        
+        var nameInput = new TextBox
+        {
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        };
+        HintAssist.SetHint(nameInput, "Template name");
+        
+        var descInput = new TextBox
+        {
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            Height = 60,
+            Margin = new Thickness(0, 0, 0, 8),
+            Foreground = (Brush)FindResource("MaterialDesignBody")
+        };
+        HintAssist.SetHint(descInput, "Description (optional)");
+        
+        var saveButton = new Button
+        {
+            Content = "Save",
+            Style = (Style)FindResource("MaterialDesignRaisedButton"),
+            Command = DialogHost.CloseDialogCommand,
+            CommandParameter = true
+        };
+        
+        var cancelButton = new Button
+        {
+            Content = "Cancel",
+            Style = (Style)FindResource("MaterialDesignOutlinedButton"),
+            Command = DialogHost.CloseDialogCommand,
+            CommandParameter = false,
+            Margin = new Thickness(8, 0, 0, 0)
+        };
+        
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+        buttonPanel.Children.Add(saveButton);
+        buttonPanel.Children.Add(cancelButton);
+        
+        var dialogContent = new StackPanel { Margin = new Thickness(16), MinWidth = 400 };
+        dialogContent.Children.Add(new TextBlock { Text = "Save Context Template", FontSize = 18, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 16), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(new TextBlock { Text = $"Saving {_contextItems.Count} context items", Margin = new Thickness(0, 0, 0, 12), Foreground = (Brush)FindResource("MaterialDesignBodyLight") });
+        dialogContent.Children.Add(new TextBlock { Text = "Name:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(nameInput);
+        dialogContent.Children.Add(new TextBlock { Text = "Description:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4), Foreground = (Brush)FindResource("MaterialDesignBody") });
+        dialogContent.Children.Add(descInput);
+        dialogContent.Children.Add(buttonPanel);
+        
+        var result = await DialogHost.Show(dialogContent, "PromptBuilderDialog");
+        
+        if (result is bool success && success && !string.IsNullOrWhiteSpace(nameInput.Text))
+        {
+            await RunWithLoadingAsync(async () =>
+            {
+                try
+                {
+                    var template = new ContextTemplate
+                    {
+                        Name = nameInput.Text,
+                        Description = descInput.Text ?? string.Empty,
+                        Items = new List<ContextItem>(_contextItems)
+                    };
+                    
+                    await _templateService.SaveTemplateAsync(template);
+                    ShowMessage($"✓ Saved template: {nameInput.Text}");
+                }
+                catch (Exception ex)
+                {
+                    ShowMessage($"❌ Error saving template: {ex.Message}");
+                }
+            });
+        }
+    }
+
+    private async void LoadContextTemplate_Click(object sender, RoutedEventArgs e)
+    {
+        await RunWithLoadingAsync(async () =>
+        {
+            try
+            {
+                var templates = await _templateService.GetAllTemplatesAsync();
+                
+                if (templates.Count == 0)
+                {
+                    ShowMessage("⚠️ No saved templates found");
+                    return;
+                }
+                
+                await Dispatcher.InvokeAsync(async () =>
+                {
+                    var templateList = new ListBox
+                    {
+                        ItemsSource = templates,
+                        DisplayMemberPath = "Name",
+                        Height = 200,
+                        Margin = new Thickness(0, 0, 0, 8),
+                        Background = Brushes.Transparent
+                    };
+                    
+                    var loadButton = new Button
+                    {
+                        Content = "Load",
+                        Style = (Style)FindResource("MaterialDesignRaisedButton"),
+                        Command = DialogHost.CloseDialogCommand,
+                        CommandParameter = true
+                    };
+                    
+                    var deleteButton = new Button
+                    {
+                        Content = "Delete",
+                        Style = (Style)FindResource("MaterialDesignOutlinedButton"),
+                        Foreground = new SolidColorBrush(Color.FromRgb(211, 47, 47)),
+                        BorderBrush = new SolidColorBrush(Color.FromRgb(211, 47, 47)),
+                        Margin = new Thickness(8, 0, 0, 0)
+                    };
+                    
+                    deleteButton.Click += async (s, args) =>
+                    {
+                        if (templateList.SelectedItem is ContextTemplate selectedTemplate)
+                        {
+                            var confirmed = await ShowConfirmationAsync($"Delete template '{selectedTemplate.Name}'?", "Delete Template");
+                            if (confirmed)
+                            {
+                                await _templateService.DeleteTemplateAsync(selectedTemplate.Id);
+                                templates.Remove(selectedTemplate);
+                                templateList.Items.Refresh();
+                                ShowMessage($"✓ Deleted template: {selectedTemplate.Name}");
+                            }
+                        }
+                    };
+                    
+                    var cancelButton = new Button
+                    {
+                        Content = "Cancel",
+                        Style = (Style)FindResource("MaterialDesignOutlinedButton"),
+                        Command = DialogHost.CloseDialogCommand,
+                        CommandParameter = false,
+                        Margin = new Thickness(8, 0, 0, 0)
+                    };
+                    
+                    var buttonPanel = new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        HorizontalAlignment = HorizontalAlignment.Right
+                    };
+                    buttonPanel.Children.Add(loadButton);
+                    buttonPanel.Children.Add(deleteButton);
+                    buttonPanel.Children.Add(cancelButton);
+                    
+                    var dialogContent = new StackPanel { Margin = new Thickness(16), MinWidth = 400 };
+                    dialogContent.Children.Add(new TextBlock { Text = "Load Context Template", FontSize = 18, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 16), Foreground = (Brush)FindResource("MaterialDesignBody") });
+                    dialogContent.Children.Add(new TextBlock { Text = "Select a template:", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 8), Foreground = (Brush)FindResource("MaterialDesignBody") });
+                    dialogContent.Children.Add(new Border
+                    {
+                        BorderBrush = (Brush)FindResource("MaterialDesignDivider"),
+                        BorderThickness = new Thickness(1),
+                        CornerRadius = new CornerRadius(4),
+                        Child = templateList
+                    });
+                    dialogContent.Children.Add(buttonPanel);
+                    
+                    var result = await DialogHost.Show(dialogContent, "PromptBuilderDialog");
+                    
+                    if (result is bool success && success && templateList.SelectedItem is ContextTemplate template)
+                    {
+                        _contextItems.Clear();
+                        foreach (var item in template.Items)
+                        {
+                            _contextItems.Add(item);
+                        }
+                        ShowMessage($"✓ Loaded template: {template.Name} ({template.Items.Count} items)");
+                        UpdateContextBadge();
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                ShowMessage($"❌ Error loading templates: {ex.Message}");
+            }
+        });
+    }
+
+    private static string FormatFileSize(long bytes)
     {
         if (bytes < 1024) return $"{bytes} B";
         if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
@@ -986,6 +1953,36 @@ public partial class PromptBuilderDialog : Window
                     
                 case ContextItemType.Note:
                     sb.AppendLine("### Note:");
+                    sb.AppendLine(item.Content);
+                    break;
+                    
+                case ContextItemType.GitRepository:
+                    sb.AppendLine($"### Git Repository: {item.DisplayName}");
+                    sb.AppendLine(item.Content);
+                    break;
+                    
+                case ContextItemType.DatabaseQuery:
+                    sb.AppendLine($"### Database Query Result:");
+                    sb.AppendLine($"**Query:** `{item.Query}`");
+                    sb.AppendLine();
+                    sb.AppendLine(item.Content);
+                    break;
+                    
+                case ContextItemType.ApiEndpoint:
+                    sb.AppendLine($"### API Endpoint: {item.HttpMethod} {item.Url}");
+                    if (item.Headers?.Count > 0)
+                    {
+                        sb.AppendLine("**Headers:**");
+                        foreach (var header in item.Headers)
+                            sb.AppendLine($"- {header.Key}: {header.Value}");
+                        sb.AppendLine();
+                    }
+                    sb.AppendLine("**Response:**");
+                    sb.AppendLine(item.Content);
+                    break;
+                    
+                case ContextItemType.WebPage:
+                    sb.AppendLine($"### Web Page: {item.Url}");
                     sb.AppendLine(item.Content);
                     break;
             }

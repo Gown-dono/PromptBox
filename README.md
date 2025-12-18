@@ -42,6 +42,7 @@ A modern, feature-rich WPF desktop application for managing AI prompts. Create, 
 ### AI-Powered Features
 - **AI Prompt Builder**: Create and test prompts with multiple AI models (OpenAI, Anthropic, Google, Mistral, Groq)
 - **Prompt Workflows**: Run complete multi-step prompt workflows with a single click
+- **Visual Workflow Designer**: Drag-and-drop workflow editor with conditional branching, loops, and error handling
 - **Batch Processing**: Execute multiple prompts against multiple AI models in a single batch
 - **Prompt Testing & A/B Comparison**: Create test suites with evaluation criteria, run tests, and compare variations
 - **Prompt Comparison Tool**: Compare 2-4 prompt variations side-by-side with automatic ranking
@@ -70,10 +71,11 @@ Built using **MVVM (Model-View-ViewModel)** pattern with clean separation of con
 
 ```
 PromptBox/
-├── Models/              # Data models (Prompt, Category, Tag)
+├── Models/              # Data models (Prompt, Category, Tag, Workflow)
 ├── ViewModels/          # MVVM ViewModels with business logic
 ├── Views/               # XAML views and UI
-├── Services/            # Business services (Database, Theme, Export, Search)
+├── Controls/            # Custom controls (WorkflowCanvas, WorkflowNode, etc.)
+├── Services/            # Business services (Database, Theme, Export, Search, AI, Workflow)
 ├── Properties/          # Application settings
 └── Data/                # LiteDB database storage (created at runtime)
 ```
