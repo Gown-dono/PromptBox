@@ -101,7 +101,7 @@ PromptBox/
 1. Clone the repository:
 ```bash
 git clone https://github.com/Gown-dono/PromptBox.git
-cd PromptBox-AI-Prompt-Manager
+cd PromptBox
 ```
 
 2. Restore NuGet packages:
