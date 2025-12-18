@@ -44,10 +44,12 @@ public class PromptCommunityService : IPromptCommunityService
     {
         try
         {
-            // Check in-memory cache first
+            // Check in-memory cache first (but still refresh download counts)
             if (!forceRefresh && _cachedTemplates != null && 
                 DateTime.Now - _lastFetchTime < TimeSpan.FromMinutes(5))
             {
+                // Refresh download counts from API even when using cache
+                await MergeDownloadCountsAsync(_cachedTemplates);
                 return _cachedTemplates;
             }
 
@@ -64,6 +66,9 @@ public class PromptCommunityService : IPromptCommunityService
                         .Where(t => t != null)
                         .Cast<PromptTemplate>()
                         .ToList();
+                    
+                    // Always fetch fresh download counts from API
+                    await MergeDownloadCountsAsync(templates);
                     
                     _cachedTemplates = templates;
                     _lastFetchTime = DateTime.Now;
