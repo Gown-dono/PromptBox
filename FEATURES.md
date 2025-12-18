@@ -312,7 +312,7 @@ Currently, the application uses standard Windows shortcuts:
 
 #### Prompt Quality Analyzer
 - AI-powered quality scoring (0-100)
-- Clarity and specificity ratings
+- Download rating
 - Strength identification
 - Improvement suggestions
 - Actionable feedback
